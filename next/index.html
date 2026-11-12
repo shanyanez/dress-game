@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Dress That Can't Decide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,600&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+  /* Layout: a hand-inked seamstress's attic with the gown on a rug in the middle. The controls are sewing things:
+     a stitched garment label for the title (top-left), four sewing buttons for actions (top-right),
+     pinned fabric samples for cloth (right edge), and a rack of thread spools for color (bottom). Single theme by choice. */
+  :root {
+    color-scheme: light;
+    --room: #1c1815;
+    --linen: #f3ecdc;
+    --ink: #33261f;
+    --ink-soft: #6a5847;
+    --rose: #a2454e;
+    --wood: #5b4534;
+    --brass: #c8b07a;
+    --font-display: "Playfair Display", "Iowan Old Style", Georgia, serif;
+    --font-type: "Special Elite", "Courier New", monospace;
+    --drop: 2px 3px 0 rgba(18, 12, 8, 0.55);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--room); color: var(--ink); font-family: var(--font-type); overflow: hidden; }
+  canvas#stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  canvas#stage.dragging { cursor: grabbing; }
+  button { font-family: var(--font-type); }
+  button:focus-visible { outline: 2px solid var(--linen); outline-offset: 4px; }
+
+  /* title: a woven garment label with a stitched edge */
+  .label {
+    position: fixed; top: 18px; left: 20px; max-width: 17rem; padding: 16px 21px 13px; pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(120,100,70,0.08) 0 1px, transparent 1px 3px),
+                repeating-linear-gradient(90deg, rgba(120,100,70,0.08) 0 1px, transparent 1px 3px), var(--linen);
+    outline: 1.5px dashed var(--rose); outline-offset: -7px; box-shadow: var(--drop); transform: rotate(-1.5deg);
+  }
+  h1 { font-family: var(--font-display); font-style: italic; font-weight: 600; font-size: 1.32rem; line-height: 1.15; margin: 0; text-wrap: balance; }
+  .label p { margin: 7px 0 0; font-size: 0.72rem; line-height: 1.45; color: var(--ink-soft); }
+
+  /* actions: sewing buttons */
+  .actions { position: fixed; top: 20px; right: 22px; display: flex; gap: 16px; }
+  .act { display: flex; flex-direction: column; align-items: center; gap: 7px; background: none; border: 0; padding: 0; cursor: pointer; font-size: 0.7rem; letter-spacing: 0.04em; }
+  .act b {
+    position: relative; display: block; width: 56px; height: 56px; border-radius: 50%; border: 1.5px solid var(--ink); box-shadow: var(--drop);
+    background:
+      radial-gradient(circle at 41% 41%, #2a201a 0 3px, transparent 3.6px), radial-gradient(circle at 59% 41%, #2a201a 0 3px, transparent 3.6px),
+      radial-gradient(circle at 41% 59%, #2a201a 0 3px, transparent 3.6px), radial-gradient(circle at 59% 59%, #2a201a 0 3px, transparent 3.6px),
+      radial-gradient(circle, transparent 0 17px, rgba(0,0,0,0.24) 17.5px 19px, transparent 19.5px),
+      radial-gradient(circle at 34% 28%, rgba(255,255,255,0.4), transparent 58%), var(--b);
+    transition: transform .14s ease;
+  }
+  .act:hover b { transform: translateY(-2px) rotate(10deg); }
+  .act:active b { transform: translateY(2px); }
+  .act[aria-pressed="true"] b::after { /* thread crossed through the holes when switched on */
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(45deg, transparent 43%, var(--rose) 43% 57%, transparent 57%) center / 16px 16px no-repeat,
+                linear-gradient(-45deg, transparent 43%, var(--rose) 43% 57%, transparent 57%) center / 16px 16px no-repeat;
+  }
+  .act span { background: var(--linen); color: var(--ink); padding: 3px 7px 1px; box-shadow: 1px 2px 0 rgba(18,12,8,0.5); }
+
+  /* cloth: pinned fabric samples with pinked edges */
+  .cloths { position: fixed; right: 22px; top: 54%; transform: translateY(-50%); display: grid; grid-template-columns: repeat(2, auto); gap: 17px 15px; }
+  .cloth { position: relative; background: none; border: 0; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    font-size: 0.68rem; color: var(--ink); filter: drop-shadow(2px 3px 0 rgba(18,12,8,0.5)); transition: transform .15s ease; }
+  .cloth:nth-child(odd) { transform: rotate(-3deg); }
+  .cloth:nth-child(even) { transform: rotate(2.5deg); }
+  .cloth:hover { transform: scale(1.06); }
+  .cloth i { display: block; width: 66px; height: 50px; background: var(--sw); }
+  .cloth::before { content: ""; position: absolute; top: -4px; left: 50%; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; z-index: 1;
+    border: 1px solid var(--ink); background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.6), transparent 45%), var(--brass); }
+  .cloth span { background: var(--linen); padding: 3px 6px 1px; }
+  .cloth[aria-pressed="true"] { transform: scale(1.13); }
+  .cloth[aria-pressed="true"]::before { background-color: var(--rose); }
+  .cloth[aria-pressed="true"] span { background: var(--rose); color: var(--linen); }
+
+  /* which part gets the color: small tags above the spools */
+  .parts { position: fixed; bottom: 106px; left: 50%; transform: translateX(-50%); display: flex; gap: 9px; }
+  .part { background: var(--linen); color: var(--ink); border: 0; padding: 4px 9px 2px; font-size: 0.7rem; letter-spacing: 0.04em; cursor: pointer; box-shadow: 1px 2px 0 rgba(18,12,8,0.5); }
+  .part:nth-child(odd) { transform: rotate(-1.5deg); }
+  .part:nth-child(even) { transform: rotate(1deg); }
+  .part[aria-pressed="true"] { background: var(--rose); color: var(--linen); }
+
+  /* color: a rack of thread spools */
+  .rack { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: flex-end; gap: 9px;
+    padding: 14px 18px 0; border-bottom: 10px solid var(--wood); border-radius: 0 0 3px 3px; box-shadow: 0 3px 0 rgba(18,12,8,0.6); max-width: calc(100% - 24px); }
+  .spool { position: relative; flex: none; width: 26px; height: 46px; background: none; border: 0; padding: 0; cursor: pointer; transition: transform .15s ease; }
+  .spool::before, .spool::after { content: ""; position: absolute; left: 0; right: 0; height: 8px; background: #d9c79c; border: 1.5px solid var(--ink); border-radius: 3px; z-index: 1; }
+  .spool::before { top: 0; }
+  .spool::after { bottom: 0; }
+  .spool i { position: absolute; left: 3px; right: 3px; top: 6px; bottom: 6px; border-left: 1.5px solid var(--ink); border-right: 1.5px solid var(--ink);
+    background: repeating-linear-gradient(5deg, rgba(0,0,0,0.17) 0 1px, transparent 1px 3.5px), var(--c); }
+  .spool:hover { transform: translateY(-4px); }
+  .spool[aria-pressed="true"] { transform: translateY(-11px); }
+  .spool[aria-pressed="true"] i::after { content: ""; position: absolute; left: 50%; bottom: -20px; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: var(--linen); }
+
+  #fail { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px; text-align: center; color: #d8ccb4; font-size: 1rem; }
+  @media (max-width: 760px) {
+    .label { top: 10px; left: 10px; max-width: 11rem; padding: 12px 15px 10px; }
+    h1 { font-size: 1rem; }
+    .label p { display: none; }
+    .actions { top: 12px; right: 10px; gap: 9px; }
+    .act { font-size: 0.56rem; gap: 5px; }
+    .act b { width: 40px; height: 40px; background-size: auto; }
+    .act span { padding: 2px 4px 0; }
+    .cloths { left: 0; right: 0; top: auto; bottom: 82px; transform: none; display: flex; gap: 14px; overflow-x: auto; padding: 8px 14px 6px; }
+    .cloth { flex: none; }
+    .cloth i { width: 54px; height: 40px; }
+    .parts { bottom: 172px; gap: 7px; }
+    .part { font-size: 0.62rem; padding: 3px 7px 1px; }
+    .rack { left: 12px; right: 12px; transform: none; overflow-x: auto; justify-content: flex-start; max-width: none; padding: 14px 12px 0; }
+  }
+</style>
+</head>
+<body>
+<canvas id="stage" aria-label="A ball gown on a dress form in a seamstress's attic. Drag to look around, tap the dress to throw a color at it."></canvas>
+<div id="fail">This page needs 3D graphics (WebGL), and this browser has it turned off.</div>
+
+<div class="label">
+  <h1>The Dress That Can't Decide</h1>
+  <p>Drag to look around. Tap the dress, or pick a spool, to throw a color. The tags above the spools choose which part it lands on.</p>
+</div>
+
+<div class="actions" role="group" aria-label="Actions">
+  <button class="act" id="twirl" style="--b:#a97a7c"><b></b><span>Twirl</span></button>
+  <button class="act" id="shake" style="--b:#7c8a68"><b></b><span>Shake out</span></button>
+  <button class="act" id="breeze" style="--b:#6a7d90"><b></b><span>Breeze</span></button>
+  <button class="act" id="argue" style="--b:#bfa15c" aria-pressed="true"><b></b><span>Argue</span></button>
+</div>
+
+<div class="cloths" id="cloths" role="group" aria-label="Cloth"></div>
+<div class="parts" id="parts" role="group" aria-label="Part of the dress to color">
+  <button class="part" id="p-all" aria-pressed="true">Whole dress</button>
+  <button class="part" id="p-bodice" aria-pressed="false">Bodice</button>
+  <button class="part" id="p-skirt" aria-pressed="false">Skirt</button>
+  <button class="part" id="p-trim" aria-pressed="false">Trim</button>
+</div>
+<div class="rack" id="swatches" role="group" aria-label="Thread color to throw"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/Pass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/MaskPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script>
+(function () {
+  "use strict";
+  var canvas = document.getElementById("stage");
+  if (!window.THREE) { document.getElementById("fail").style.display = "flex"; return; }
+  var renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true }); }
+  catch (e) { document.getElementById("fail").style.display = "flex"; return; }
+
+  var calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function sc(hex) { return new THREE.Color(hex).convertSRGBToLinear(); }
+  function lin(v) { return Math.pow(v / 255, 2.2); }
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+  var query = location.search || "";
+
+  var DPR = Math.min(window.devicePixelRatio || 1, 2);
+  renderer.setPixelRatio(DPR);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.95;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  var MAXA = renderer.capabilities.getMaxAnisotropy();
+
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x1c1815);
+  var camera = new THREE.PerspectiveCamera(32, 1, 0.1, 40);
+
+  // ---------- hand-inked drawing helpers ----------
+  var INK = "#2b2019";
+  function rng(seed) { return function () { seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function wob(g, pts, close, R, amp) {
+    g.beginPath();
+    var n0 = close ? pts.length : pts.length - 1;
+    for (var i = 0; i < n0; i++) {
+      var a = pts[i], b = pts[(i + 1) % pts.length];
+      var n = Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / 26));
+      for (var k = (i === 0 ? 0 : 1); k <= n; k++) {
+        var t = k / n, x = a[0] + (b[0] - a[0]) * t + (R() - 0.5) * amp, y = a[1] + (b[1] - a[1]) * t + (R() - 0.5) * amp;
+        if (i === 0 && k === 0) g.moveTo(x, y); else g.lineTo(x, y);
+      }
+    }
+    if (close) g.closePath();
+  }
+  function shape(g, R, pts, fill, lw) {
+    wob(g, pts, true, R, 1.8);
+    if (fill) { g.fillStyle = fill; g.fill(); }
+    if (lw !== 0) { g.strokeStyle = INK; g.lineWidth = lw || 2.6; g.lineJoin = "round"; g.stroke(); }
+  }
+  function line(g, R, pts, lw, col) { wob(g, pts, false, R, 1.8); g.strokeStyle = col || INK; g.lineWidth = lw || 2.4; g.lineCap = "round"; g.stroke(); }
+  function box(x, y, w, h) { return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]; }
+  function oval(cx, cy, rx, ry, n, a0, a1) {
+    var p = []; n = n || 28; a0 = a0 || 0; a1 = a1 === undefined ? Math.PI * 2 : a1;
+    var full = Math.abs(a1 - a0) > 6.2, m = full ? n : n + 1;
+    for (var i = 0; i < m; i++) { var a = a0 + (a1 - a0) * i / n; p.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]); }
+    return p;
+  }
+  function wash(g, R, x, y, w, h, base, tints, n) {
+    g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+    g.fillStyle = base; g.fillRect(x, y, w, h);
+    for (var i = 0; i < n; i++) {
+      var cx = x + R() * w, cy = y + R() * h, r = (0.08 + R() * 0.22) * Math.max(w, h) * 0.6, c = tints[i % tints.length];
+      var gr = g.createRadialGradient(cx, cy, 0, cx, cy, r);
+      gr.addColorStop(0, "rgba(" + c + "," + (0.1 + R() * 0.16).toFixed(3) + ")"); gr.addColorStop(1, "rgba(" + c + ",0)");
+      g.fillStyle = gr; g.fillRect(cx - r, cy - r, r * 2, r * 2);
+    }
+    g.restore();
+  }
+  function speckle(g, R, w, h, n, a) {
+    for (var i = 0; i < n; i++) {
+      g.fillStyle = R() < 0.55 ? "rgba(30,20,12," + a + ")" : "rgba(255,244,222," + a + ")";
+      g.fillRect(R() * w, R() * h, 1 + R() * 1.6, 1 + R() * 1.6);
+    }
+  }
+  function makeTex(w, h, seed, draw) {
+    var c = document.createElement("canvas"); c.width = w; c.height = h;
+    draw(c.getContext("2d"), rng(seed), w, h);
+    var t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = MAXA;
+    return t;
+  }
+
+  // ---------- the attic ----------
+  var S = 2048 / 11, WH = Math.round(5 * S);
+  function mx(x) { return (x + 5.5) * S; }
+  function my(y) { return (5 - y) * S; }
+  function plaster(g, R, w, h) {
+    wash(g, R, 0, 0, w, h, "#b4a890", ["158,144,120", "200,190,168", "170,157,132", "140,128,108"], 70);
+    for (var i = 0; i < 14; i++) { // hairline cracks and brush drags
+      var x = R() * w, y = R() * h * 0.7;
+      line(g, R, [[x, y], [x + (R() - 0.5) * 90, y + 40 + R() * 90]], 1, "rgba(60,46,34,0.18)");
+    }
+  }
+  function wainscot(g, R, w, h) {
+    var top = my(1.15), bw = S * 0.3;
+    for (var x = 0; x < w; x += bw) {
+      var t = 70 + R() * 16;
+      g.fillStyle = "rgb(" + Math.round(t + 22) + "," + Math.round(t + 2) + "," + Math.round(t - 18) + ")"; g.fillRect(x, top, bw + 1, h - top);
+      for (var s = 0; s < 5; s++) { var gx = x + R() * bw; line(g, R, [[gx, top + 8], [gx + (R() - 0.5) * 6, h - 34]], 1 + R(), "rgba(40,26,16," + (0.1 + R() * 0.12).toFixed(2) + ")"); }
+    }
+    for (var x2 = bw; x2 < w; x2 += bw) line(g, R, [[x2, top], [x2, h]], 2.4);
+    shape(g, R, box(-4, my(1.28), w + 8, S * 0.13), "#4c3a2c");
+    shape(g, R, box(-4, my(0.17), w + 8, S * 0.17 + 4), "#42322a");
+  }
+  function stencilBand(g, R, w) {
+    line(g, R, [[0, my(4.12)], [w, my(4.12)]], 2.2, "rgba(60,46,34,0.6)");
+    line(g, R, [[0, my(3.84)], [w, my(3.84)]], 2.2, "rgba(60,46,34,0.6)");
+    for (var x = S * 0.2; x < w; x += S * 0.4) {
+      var y = my(3.98);
+      shape(g, R, [[x, y - 11], [x + 9, y], [x, y + 11], [x - 9, y]], "rgba(110,96,74,0.75)", 0);
+      g.fillStyle = "rgba(110,96,74,0.75)";
+      g.beginPath(); g.arc(x + S * 0.2, y - 5, 3, 0, 6.283); g.arc(x + S * 0.2, y + 5, 3, 0, 6.283); g.fill();
+    }
+  }
+  var backTex = makeTex(2048, WH, 11, function (g, R, w, h) {
+    plaster(g, R, w, h); stencilBand(g, R, w); wainscot(g, R, w, h);
+    // arched window with a night sky
+    var cx = mx(2.05), hw = S * 0.74, sill = my(1.5), spring = my(3.05);
+    var arch = [[cx - hw, sill], [cx - hw, spring]].concat(oval(cx, spring, hw, hw, 18, Math.PI, Math.PI * 2)).concat([[cx + hw, sill]]);
+    g.save(); wob(g, arch, true, R, 1.2); g.clip();
+    var sky = g.createLinearGradient(0, spring - hw, 0, sill); sky.addColorStop(0, "#131b29"); sky.addColorStop(1, "#2b3a4c");
+    g.fillStyle = sky; g.fillRect(cx - hw - 4, spring - hw - 4, hw * 2 + 8, sill - spring + hw + 8);
+    for (var i = 0; i < 46; i++) { g.fillStyle = "rgba(240,232,208," + (0.4 + R() * 0.6).toFixed(2) + ")"; g.beginPath(); g.arc(cx - hw + R() * hw * 2, spring - hw + R() * (sill - spring + hw), 0.8 + R() * 1.6, 0, 6.283); g.fill(); }
+    g.fillStyle = "#ece2c4"; g.beginPath(); g.arc(cx + hw * 0.35, spring - hw * 0.25, 26, 0, 6.283); g.fill();
+    g.fillStyle = "#18202e"; g.beginPath(); g.arc(cx + hw * 0.35 + 11, spring - hw * 0.25 - 6, 23, 0, 6.283); g.fill();
+    g.restore();
+    wob(g, arch, true, R, 1.5); g.strokeStyle = "#6b523e"; g.lineWidth = 20; g.lineJoin = "round"; g.stroke();
+    wob(g, arch, true, R, 1.5); g.strokeStyle = INK; g.lineWidth = 2.4; g.stroke();
+    line(g, R, [[cx, spring - hw + 6], [cx, sill]], 9, "#6b523e"); line(g, R, [[cx - hw, my(2.25)], [cx + hw, my(2.25)]], 9, "#6b523e"); line(g, R, [[cx - hw, spring], [cx + hw, spring]], 9, "#6b523e");
+    line(g, R, [[cx - 5, spring - hw + 10], [cx - 5, sill]], 1.6); line(g, R, [[cx + 5, spring - hw + 10], [cx + 5, sill]], 1.6);
+    shape(g, R, box(cx - hw - 26, sill - 4, hw * 2 + 52, 20), "#5b4534");
+    // drapes, tied back
+    for (var sgn = -1; sgn <= 1; sgn += 2) {
+      var P = function (dx, y) { return [cx + sgn * dx * S, my(y)]; };
+      shape(g, R, [P(1.12, 4.02), P(0.3, 4.02), P(0.46, 3.3), P(0.74, 2.42), P(0.6, 1.38), P(1.12, 1.32), P(1.02, 2.4), P(1.16, 3.2)], "#8d6163");
+      line(g, R, [P(0.55, 4.0), P(0.66, 3.2), P(0.84, 2.46)], 1.8); line(g, R, [P(0.82, 4.0), P(0.9, 3.1), P(0.9, 2.46)], 1.8);
+      line(g, R, [P(1.0, 4.0), P(1.04, 3.0), P(0.98, 2.46)], 1.6); line(g, R, [P(0.86, 2.36), P(0.8, 1.38)], 1.8); line(g, R, [P(0.98, 2.36), P(0.98, 1.36)], 1.6);
+      shape(g, R, [P(0.7, 2.5), P(1.06, 2.46), P(1.06, 2.36), P(0.7, 2.38)], "#c8b07a");
+    }
+    line(g, R, [[cx - S * 1.25, my(4.05)], [cx + S * 1.25, my(4.05)]], 8, "#4a382b");
+    shape(g, R, oval(cx - S * 1.27, my(4.05), 10, 10, 10), "#c8b07a"); shape(g, R, oval(cx + S * 1.27, my(4.05), 10, 10, 10), "#c8b07a");
+    // shelves with bolts of cloth, spools and jars
+    var bolt = ["#a97a7c", "#7c8a68", "#bfa15c", "#6a7d90", "#d6cab0", "#77597a", "#9c6f52"];
+    function shelf(y) {
+      shape(g, R, box(mx(-3.75), my(y), S * 2.4, 13), "#5b4534");
+      for (var b = 0; b < 2; b++) { var bx = mx(-3.45 + b * 1.8); shape(g, R, [[bx, my(y) + 13], [bx + 30, my(y) + 13], [bx, my(y) + 50]], "#4c3a2c", 2); }
+    }
+    shelf(2.3); shelf(3.08);
+    var x = mx(-3.62);
+    for (var b2 = 0; b2 < 7; b2++) {
+      var bw2 = S * (0.2 + R() * 0.1), bh = S * (0.46 + R() * 0.24), tilt = b2 === 6 ? 0.12 : 0;
+      g.save(); g.translate(x + bw2 / 2, my(2.3)); g.rotate(tilt);
+      shape(g, R, [[-bw2 / 2, 0], [-bw2 / 2, -bh + 10], [-bw2 / 2 + 8, -bh], [bw2 / 2 - 8, -bh], [bw2 / 2, -bh + 10], [bw2 / 2, 0]], bolt[b2 % 7]);
+      line(g, R, [[-bw2 * 0.18, -bh + 6], [-bw2 * 0.2, -6]], 1.4); line(g, R, [[bw2 * 0.2, -bh + 8], [bw2 * 0.16, -8]], 1.4);
+      shape(g, R, oval(0, -bh, bw2 / 2 - 6, 6, 12), "rgba(255,246,226,0.25)", 1.6);
+      g.restore(); x += bw2 + 7;
+    }
+    x = mx(-3.6);
+    for (var sp = 0; sp < 6; sp++) { // spools
+      var top = my(3.08) - 44;
+      shape(g, R, box(x + 3, top + 6, 20, 32), bolt[(sp + 2) % 7]); for (var q = 0; q < 4; q++) line(g, R, [[x + 3, top + 12 + q * 7], [x + 23, top + 10 + q * 7]], 1);
+      shape(g, R, box(x, top, 26, 7), "#cdbb92", 2); shape(g, R, box(x, top + 37, 26, 7), "#cdbb92", 2); x += 36;
+    }
+    for (var j = 0; j < 2; j++) { // jars of buttons
+      var jx = mx(-2.25 + j * 0.34), jy = my(3.08);
+      shape(g, R, [[jx - 24, jy], [jx - 24, jy - 54], [jx - 14, jy - 64], [jx + 14, jy - 64], [jx + 24, jy - 54], [jx + 24, jy]], "rgba(190,205,196,0.45)", 2.2);
+      shape(g, R, box(jx - 17, jy - 74, 34, 11), "#8a6f52", 2);
+      for (var d = 0; d < 16; d++) { g.fillStyle = bolt[d % 7]; g.beginPath(); g.arc(jx - 16 + R() * 32, jy - 6 - R() * 34, 4, 0, 6.283); g.fill(); }
+    }
+    // pinned sketches
+    function sketch(px, py, rot) {
+      g.save(); g.translate(mx(px), my(py)); g.rotate(rot);
+      shape(g, R, box(-52, -70, 104, 140), "#e6dcc2", 2.2);
+      line(g, R, [[-10, -40], [10, -40], [7, -14], [-7, -14], [-10, -40]], 1.6); line(g, R, [[-7, -14], [-34, 46], [34, 46], [7, -14]], 1.6);
+      line(g, R, [[-16, 46], [-6, -6]], 1); line(g, R, [[14, 46], [5, -6]], 1); line(g, R, [[-30, 58], [22, 58]], 1, "rgba(43,32,25,0.5)");
+      g.fillStyle = "#a2454e"; g.beginPath(); g.arc(0, -62, 4.5, 0, 6.283); g.fill();
+      g.restore();
+    }
+    sketch(-0.95, 3.0, -0.06); sketch(-0.2, 2.86, 0.05); sketch(0.62, 3.05, -0.03);
+    speckle(g, R, w, h, 9000, 0.06);
+  });
+  var sideTex = makeTex(1024, WH, 23, function (g, R, w, h) { plaster(g, R, w, h); stencilBand(g, R, w); wainscot(g, R, w, h); speckle(g, R, w, h, 4500, 0.06); });
+  sideTex.wrapS = THREE.RepeatWrapping; sideTex.repeat.set(12 / 5.5, 1);
+  var floorTex = makeTex(1024, 1024, 5, function (g, R, w, h) {
+    var pw = 128;
+    for (var p = 0; p < 8; p++) {
+      var t = 72 + R() * 20;
+      g.fillStyle = "rgb(" + Math.round(t + 20) + "," + Math.round(t + 1) + "," + Math.round(t - 20) + ")"; g.fillRect(p * pw, 0, pw, h);
+      for (var s = 0; s < 9; s++) { var x = p * pw + 6 + R() * (pw - 12); line(g, R, [[x, 0], [x + (R() - 0.5) * 10, h * 0.5], [x + (R() - 0.5) * 10, h]], 1 + R() * 1.6, "rgba(40,26,16," + (0.08 + R() * 0.12).toFixed(2) + ")"); }
+      var jy = 40 + R() * (h - 80); line(g, R, [[p * pw, jy], [(p + 1) * pw, jy]], 2.4);
+      g.fillStyle = "rgba(30,20,12,0.7)"; g.beginPath(); g.arc(p * pw + 14, jy + 9, 2.4, 0, 6.283); g.arc(p * pw + pw - 14, jy - 9, 2.4, 0, 6.283); g.fill();
+    }
+    for (var p2 = 0; p2 < 8; p2++) line(g, R, [[p2 * pw + 1, 0], [p2 * pw + 1, h]], 3);
+    speckle(g, R, w, h, 5000, 0.07);
+  });
+  floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping; floorTex.repeat.set(3.5, 3.5);
+  var rugTex = makeTex(1024, 1024, 8, function (g, R, w, h) {
+    var c = 512;
+    g.save(); g.beginPath(); g.arc(c, c, 498, 0, 6.283); g.clip();
+    wash(g, R, 0, 0, w, h, "#69755a", ["84,98,70", "128,140,108", "92,104,78"], 40);
+    g.restore();
+    for (var f = 0; f < 150; f++) { var a = f / 150 * 6.283; line(g, R, [[c + Math.cos(a) * 492, c + Math.sin(a) * 492], [c + Math.cos(a) * 508, c + Math.sin(a) * 508]], 2, "#3d4633"); }
+    g.save(); g.beginPath(); g.arc(c, c, 462, 0, 6.283); g.arc(c, c, 398, 0, 6.283, true); g.fillStyle = "rgba(190,186,150,0.5)"; g.fill(); g.restore();
+    shape(g, R, oval(c, c, 496, 496, 90), null, 3); shape(g, R, oval(c, c, 462, 462, 80), null, 2.4); shape(g, R, oval(c, c, 398, 398, 70), null, 2.4);
+    for (var k = 0; k < 28; k++) { // laurel border
+      var a2 = k / 28 * 6.283;
+      g.save(); g.translate(c + Math.cos(a2) * 430, c + Math.sin(a2) * 430); g.rotate(a2 + Math.PI / 2);
+      shape(g, R, oval(-13, 0, 15, 7, 10), "#4a563e", 1.4); shape(g, R, oval(13, -3, 15, 7, 10), "#4a563e", 1.4);
+      g.restore();
+    }
+    function star(x, y, r) { var p = []; for (var i = 0; i < 8; i++) { var a = i / 8 * 6.283, rr = i % 2 ? r * 0.42 : r; p.push([x + Math.cos(a) * rr, y + Math.sin(a) * rr]); } shape(g, R, p, "#4a563e", 1.4); }
+    for (var k2 = 0; k2 < 12; k2++) { var a3 = k2 / 12 * 6.283; star(c + Math.cos(a3) * 310, c + Math.sin(a3) * 310, 26); }
+    for (var k3 = 0; k3 < 6; k3++) { var a4 = (k3 + 0.5) / 6 * 6.283; star(c + Math.cos(a4) * 170, c + Math.sin(a4) * 170, 20); }
+    shape(g, R, oval(c, c, 232, 232, 50), null, 1.8);
+    shape(g, R, oval(c, c, 70, 70, 26), "rgba(190,186,150,0.5)", 2.2);
+    speckle(g, R, w, h, 5000, 0.06);
+  });
+  var mirrorTex = makeTex(512, 1024, 31, function (g, R) {
+    line(g, R, [[110, 250], [50, 1000]], 20, "#5b4534"); line(g, R, [[402, 250], [462, 1000]], 20, "#5b4534");
+    line(g, R, [[100, 250], [40, 1000]], 2.2); line(g, R, [[120, 250], [62, 1000]], 2.2); line(g, R, [[412, 250], [472, 1000]], 2.2); line(g, R, [[392, 250], [450, 1000]], 2.2);
+    shape(g, R, box(20, 992, 70, 20), "#4c3a2c"); shape(g, R, box(422, 992, 70, 20), "#4c3a2c");
+    shape(g, R, oval(256, 440, 214, 396, 44), "#6b523e");
+    g.save(); wob(g, oval(256, 440, 180, 362, 44), true, R, 1.2); g.clip();
+    var gl = g.createLinearGradient(80, 80, 430, 800); gl.addColorStop(0, "#aab9b4"); gl.addColorStop(0.5, "#7f928f"); gl.addColorStop(1, "#5e7172");
+    g.fillStyle = gl; g.fillRect(60, 60, 400, 780);
+    g.strokeStyle = "rgba(240,244,236,0.35)"; g.lineWidth = 26; g.beginPath(); g.moveTo(120, 520); g.lineTo(330, 130); g.stroke();
+    g.lineWidth = 9; g.beginPath(); g.moveTo(170, 560); g.lineTo(370, 190); g.stroke();
+    g.restore();
+    shape(g, R, oval(256, 440, 180, 362, 44), null, 2.4);
+    shape(g, R, oval(256, 40, 26, 22, 12), "#c8b07a");
+  });
+  var boxesTex = makeTex(768, 768, 44, function (g, R) {
+    function hatbox(cx, by, rw, hh, col, band) {
+      shape(g, R, [[cx - rw, by - hh], [cx - rw, by]].concat(oval(cx, by, rw, 16, 12, Math.PI, 0)).concat([[cx + rw, by - hh]]), col);
+      shape(g, R, [[cx - rw, by - hh * 0.62], [cx - rw, by - hh * 0.38], [cx + rw, by - hh * 0.38], [cx + rw, by - hh * 0.62]], band, 1.6);
+      shape(g, R, [[cx - rw - 8, by - hh - 26], [cx - rw - 8, by - hh]].concat(oval(cx, by - hh, rw + 8, 18, 12, Math.PI, 0)).concat([[cx + rw + 8, by - hh - 26]]), col);
+      shape(g, R, oval(cx, by - hh - 26, rw + 8, 18, 22), col);
+    }
+    hatbox(300, 740, 190, 210, "#71829a", "#d6cab0"); hatbox(310, 486, 150, 170, "#d6cab0", "#a97a7c"); hatbox(296, 276, 108, 120, "#7c8a68", "#c8b07a");
+    shape(g, R, oval(266, 118, 44, 24, 12), "#a2454e"); shape(g, R, oval(330, 122, 44, 24, 12), "#a2454e"); shape(g, R, oval(298, 124, 14, 14, 10), "#8a3a42");
+    shape(g, R, [[520, 560], [540, 744], [730, 744], [752, 560]], "#a08260");
+    for (var i = 0; i < 6; i++) line(g, R, [[524 + i * 2, 586 + i * 28], [748 - i * 2, 586 + i * 28]], 1.4);
+    for (var k = 0; k < 7; k++) line(g, R, [[540 + k * 32, 562], [552 + k * 29, 742]], 1.2);
+    shape(g, R, [[560, 566], [552, 420], [600, 408], [612, 566]], "#bfa15c"); shape(g, R, [[622, 566], [640, 380], [690, 392], [680, 566]], "#a97a7c"); shape(g, R, [[690, 566], [716, 450], [750, 466], [738, 566]], "#77597a");
+  });
+
+  function flat(tex, w, h) { var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, roughness: 1, envMapIntensity: 0.15 })); m.receiveShadow = true; scene.add(m); return m; }
+  var floorM = flat(floorTex, 14, 14); floorM.rotation.x = -Math.PI / 2; floorM.position.set(0, 0, 2.2);
+  var back = flat(backTex, 11, 5); back.position.set(0, 2.5, -3.6);
+  var wl = flat(sideTex, 12, 5); wl.rotation.y = Math.PI / 2; wl.position.set(-5.5, 2.5, 2.4);
+  var wr = flat(sideTex, 12, 5); wr.rotation.y = -Math.PI / 2; wr.position.set(5.5, 2.5, 2.4);
+  var rug = new THREE.Mesh(new THREE.CircleGeometry(2.45, 72), new THREE.MeshStandardMaterial({ map: rugTex, roughness: 1, alphaTest: 0.5, envMapIntensity: 0.1 }));
+  rug.rotation.x = -Math.PI / 2; rug.position.y = 0.004; rug.receiveShadow = true; scene.add(rug);
+  var blob = document.createElement("canvas"); blob.width = blob.height = 128;
+  (function () { var g = blob.getContext("2d"), gr = g.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, "rgba(10,6,4,0.6)"); gr.addColorStop(1, "rgba(10,6,4,0)"); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); })();
+  var blobTex = new THREE.CanvasTexture(blob);
+  function cutout(tex, w, h, x, z, ry) {
+    var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, roughness: 1, alphaTest: 0.5, side: THREE.DoubleSide, envMapIntensity: 0.15 }));
+    m.position.set(x, h / 2, z); m.rotation.y = ry; scene.add(m);
+    var s = new THREE.Mesh(new THREE.PlaneGeometry(w * 1.3, w * 0.7), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false }));
+    s.rotation.x = -Math.PI / 2; s.position.set(x, 0.006, z + 0.05); scene.add(s);
+  }
+  cutout(mirrorTex, 1.15, 2.3, -3.0, -2.2, 0.42);
+  cutout(boxesTex, 1.7, 1.7, 3.5, -2.3, -0.3);
+
+  // ---------- light ----------
+  (function environment() {
+    var env = new THREE.Scene();
+    env.background = new THREE.Color(0.09, 0.075, 0.06);
+    function panel(w, h, x, y, z, r, g, b) {
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b), side: THREE.DoubleSide }));
+      m.position.set(x, y, z); m.lookAt(0, 0.8, 0); env.add(m);
+    }
+    panel(6, 4, 1, 7, 5, 4.4, 3.9, 3.2);
+    panel(2.4, 7, -8, 2.5, 1, 2.2, 1.8, 1.4);
+    panel(2.4, 6, 8, 2.5, -2, 1.3, 1.7, 2.6);
+    panel(8, 2, 0, 3.5, -8, 1.6, 1.4, 1.1);
+    panel(14, 14, 0, -3, 0, 0.35, 0.28, 0.2);
+    for (var i = 0; i < 14; i++) { var a = i * 2.4, y = 1 + (i * 37 % 10) * 0.55; panel(0.35, 0.35, Math.cos(a) * 7, y, Math.sin(a) * 7, 12, 11, 9); }
+    scene.environment = new THREE.PMREMGenerator(renderer).fromScene(env, 0.03).texture;
+  })();
+  var key = new THREE.SpotLight(0xffe6c4, 0.9, 0, 0.5, 0.95, 0);
+  key.position.set(2.4, 5.6, 4.0); key.target.position.set(0, 0.6, 0); key.castShadow = true;
+  key.shadow.mapSize.set(1024, 1024); key.shadow.camera.near = 1; key.shadow.camera.far = 14;
+  key.shadow.bias = -0.0006; key.shadow.normalBias = 0.03; key.shadow.radius = 5;
+  scene.add(key); scene.add(key.target);
+  scene.add(new THREE.HemisphereLight(0xd8c9ac, 0x4a3b2e, 0.5));
+  var moon = new THREE.DirectionalLight(0x9fb4e0, 0.45); moon.position.set(3, 3.2, -4); scene.add(moon);
+  var warm = new THREE.DirectionalLight(0xffc890, 0.22); warm.position.set(-4, 2, 3); scene.add(warm);
+
+  var white = new THREE.Color(1, 1, 1);
+  var gold = new THREE.MeshStandardMaterial({ color: sc(0xd8b872), roughness: 0.32, metalness: 1 });
+  var DAIS = 0, FLOOR = 0.014;
+
+  // ---------- dress form ----------
+  var WAIST = 1.04, EX = 1.15, EZ = 0.82;
+  var profile = new THREE.SplineCurve([
+    new THREE.Vector2(0.150, WAIST - 0.16), new THREE.Vector2(0.140, WAIST - 0.08), new THREE.Vector2(0.118, WAIST),
+    new THREE.Vector2(0.130, WAIST + 0.10), new THREE.Vector2(0.158, WAIST + 0.24), new THREE.Vector2(0.164, WAIST + 0.33),
+    new THREE.Vector2(0.156, WAIST + 0.40), new THREE.Vector2(0.118, WAIST + 0.455), new THREE.Vector2(0.062, WAIST + 0.49),
+    new THREE.Vector2(0.050, WAIST + 0.56)
+  ]).getPoints(60);
+  function torsoR(y) {
+    for (var i = 1; i < profile.length; i++) {
+      if (profile[i].y >= y) {
+        var a = profile[i - 1], b = profile[i], t = (y - a.y) / Math.max(1e-6, b.y - a.y);
+        return a.x + (b.x - a.x) * Math.max(0, Math.min(1, t));
+      }
+    }
+    return profile[profile.length - 1].x;
+  }
+  var dress = new THREE.Group(); scene.add(dress);
+  var linen = new THREE.MeshStandardMaterial({ color: sc(0xd9cbb4), roughness: 0.9, envMapIntensity: 0.5 });
+  var form = new THREE.Mesh(new THREE.LatheGeometry(profile, 48), linen);
+  form.scale.set(EX, 1, EZ); form.castShadow = true; dress.add(form);
+  var cap = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.05, 0.012, 32), gold);
+  cap.position.y = WAIST + 0.566; cap.scale.set(EX, 1, EZ); dress.add(cap);
+  var finial = new THREE.Mesh(new THREE.SphereGeometry(0.026, 24, 16), gold); finial.position.y = WAIST + 0.612; dress.add(finial);
+  var stem = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.03, 8), gold); stem.position.y = WAIST + 0.585; dress.add(stem);
+  var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, WAIST - 0.16, 16), gold); pole.position.y = (WAIST - 0.16) / 2 + DAIS; dress.add(pole);
+  var base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.02, 40), gold); base.position.y = DAIS + 0.01; dress.add(base);
+
+  // ---------- fabrics ----------
+  function glitterMap() {
+    var c = document.createElement("canvas"); c.width = 1024; c.height = 512;
+    var g = c.getContext("2d"); g.fillStyle = "#000"; g.fillRect(0, 0, 1024, 512);
+    var tints = ["#ffffff", "#ffe9b0", "#ffd0ee", "#d6e6ff"];
+    for (var n = 0; n < 6500; n++) {
+      var y = Math.pow(Math.random(), 1.6) * 512, r = 0.35 + Math.random() * 0.75;
+      g.globalAlpha = 0.4 + Math.random() * 0.6; g.fillStyle = tints[n % 4];
+      g.beginPath(); g.arc(Math.random() * 1024, y, r, 0, 6.283); g.fill();
+    }
+    var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 1); t.anisotropy = MAXA;
+    return t;
+  }
+  function sequinNormals() {
+    var c = document.createElement("canvas"); c.width = c.height = 256;
+    var g = c.getContext("2d"); g.fillStyle = "rgb(128,128,255)"; g.fillRect(0, 0, 256, 256);
+    for (var r = 0; r < 8; r++) for (var q = 0; q < 8; q++) {
+      var nx = (Math.random() - 0.5), ny = (Math.random() - 0.5), nz = Math.sqrt(Math.max(0.1, 1 - nx * nx - ny * ny));
+      g.fillStyle = "rgb(" + Math.round(128 + nx * 127) + "," + Math.round(128 + ny * 127) + "," + Math.round(nz * 255) + ")";
+      var x = q * 32 + (r % 2 ? 16 : 0) + 16, y = r * 32 + 16;
+      for (var w = -1; w <= 1; w++) { g.beginPath(); g.arc(x + w * 256, y, 14.5, 0, 6.283); g.fill(); }
+    }
+    var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(40, 18); t.anisotropy = MAXA;
+    return t;
+  }
+  function pleatNormals() {
+    var c = document.createElement("canvas"); c.width = 64; c.height = 4;
+    var g = c.getContext("2d");
+    for (var x = 0; x < 64; x++) { var a = x / 64 * 6.283; g.fillStyle = "rgb(" + Math.round(128 + 110 * Math.cos(a)) + ",128," + Math.round(160 + 80 * Math.abs(Math.sin(a))) + ")"; g.fillRect(x, 0, 1, 4); }
+    var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(96, 1); t.anisotropy = MAXA;
+    return t;
+  }
+  function laceAlpha() {
+    var c = document.createElement("canvas"); c.width = c.height = 512;
+    var g = c.getContext("2d"); g.fillStyle = "#6a6a6a"; g.fillRect(0, 0, 512, 512);
+    g.strokeStyle = "rgba(255,255,255,0.8)"; g.lineWidth = 1.6;
+    for (var d = -512; d < 1024; d += 16) { g.beginPath(); g.moveTo(d, 0); g.lineTo(d + 512, 512); g.stroke(); g.beginPath(); g.moveTo(d, 512); g.lineTo(d + 512, 0); g.stroke(); }
+    g.fillStyle = "#fff"; g.strokeStyle = "#fff";
+    function rosette(x, y, r) {
+      for (var p = 0; p < 6; p++) { var a = p / 6 * 6.283; g.beginPath(); g.ellipse(x + Math.cos(a) * r * 0.55, y + Math.sin(a) * r * 0.55, r * 0.42, r * 0.22, a, 0, 6.283); g.fill(); }
+      g.beginPath(); g.arc(x, y, r * 0.2, 0, 6.283); g.fill();
+      g.lineWidth = 2.2; g.beginPath(); g.arc(x, y, r * 1.12, 0, 6.283); g.stroke();
+      for (var q = 0; q < 12; q++) { var b = q / 12 * 6.283; g.beginPath(); g.arc(x + Math.cos(b) * r * 1.32, y + Math.sin(b) * r * 1.32, 2.6, 0, 6.283); g.fill(); }
+    }
+    for (var iy = 0; iy < 3; iy++) for (var ix = 0; ix < 3; ix++) { rosette(ix * 256, iy * 256, 46); rosette(ix * 256 + 128, iy * 256 + 128, 34); }
+    var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(24, 9); t.anisotropy = MAXA;
+    return t;
+  }
+  var glitter = glitterMap(), glitterMats = [];
+  function fabricMat(o, sparkle) {
+    o.vertexColors = true; o.side = THREE.DoubleSide;
+    if (sparkle) { o.emissive = white; o.emissiveMap = glitter; o.emissiveIntensity = sparkle; }
+    var m = new THREE.MeshPhysicalMaterial(o);
+    if (sparkle) { m.userData.sparkle = sparkle; glitterMats.push(m); }
+    return m;
+  }
+  var FABRICS = {
+    satin: { label: "Satin", sw: "linear-gradient(120deg,#b9717f,#f1d3d8 42%,#a85e6d 58%,#dfa9b2)", full: 0.95, bend: 0.22, drag: 1.0, wind: 0.6,
+      mat: fabricMat({ roughness: 0.33, sheen: 0.5, sheenRoughness: 0.25, sheenColor: white, clearcoat: 0.1, clearcoatRoughness: 0.5, envMapIntensity: 0.65 }, 0.25) },
+    silk: { label: "Silk", sw: "linear-gradient(120deg,#f0c2d6,#cfe2f3 38%,#f5edc6 62%,#d7c5ee)", full: 0.88, bend: 0.08, drag: 1.7, wind: 1.1,
+      mat: fabricMat({ roughness: 0.28, sheen: 0.6, sheenRoughness: 0.3, sheenColor: white, iridescence: 1, iridescenceIOR: 1.6, iridescenceThicknessRange: [180, 620], envMapIntensity: 1.2 }, 0.5) },
+    chiffon: { label: "Chiffon", sw: "radial-gradient(circle at 40% 35%,rgba(255,255,255,.75),rgba(196,130,146,.55) 70%)", full: 0.66, bend: 0.03, drag: 3.2, wind: 1.7,
+      mat: fabricMat({ roughness: 0.55, sheen: 0.4, sheenRoughness: 0.5, sheenColor: white, transparent: true, opacity: 0.74, envMapIntensity: 0.8 }, 0.5) },
+    tulle: { label: "Tulle", sw: "repeating-linear-gradient(45deg,rgba(47,36,28,.35) 0 1px,transparent 1px 5px),repeating-linear-gradient(-45deg,rgba(47,36,28,.35) 0 1px,transparent 1px 5px),#e3b9c3", full: 1.05, bend: 0.65, drag: 2.5, wind: 0.6,
+      mat: fabricMat({ roughness: 0.85, sheen: 0.6, sheenRoughness: 0.6, sheenColor: white, transparent: true, opacity: 0.58, envMapIntensity: 0.5 }, 0.8) },
+    velvet: { label: "Velvet", sw: "radial-gradient(circle at 35% 30%,#a9596c,#662a3b)", full: 0.88, bend: 0.5, drag: 1.3, wind: 0.25,
+      mat: fabricMat({ color: new THREE.Color(0.36, 0.36, 0.36), roughness: 0.96, sheen: 1, sheenRoughness: 0.45, sheenColor: new THREE.Color(0.34, 0.27, 0.3), envMapIntensity: 0.15 }, 0.4) },
+    lace: { label: "Lace", sw: "radial-gradient(circle,#fff 0 2px,transparent 2.5px) 0 0/9px 9px,radial-gradient(circle,#fff 0 1px,transparent 1.5px) 4.5px 4.5px/9px 9px,#c78c9a", full: 0.92, bend: 0.3, drag: 2.0, wind: 0.6,
+      mat: fabricMat({ color: new THREE.Color(1.5, 1.5, 1.5), roughness: 0.8, sheen: 0.5, sheenRoughness: 0.6, sheenColor: white, alphaMap: laceAlpha(), transparent: true, alphaTest: 0.06, envMapIntensity: 0.5 }, 0) },
+    sequin: { label: "Sequins", sw: "radial-gradient(circle,#ffe9ee 0 1.6px,transparent 2.2px) 0 0/6px 6px,linear-gradient(135deg,#b46a79,#e7b4bd)", full: 0.8, bend: 0.12, drag: 0.7, wind: 0.2,
+      mat: fabricMat({ roughness: 0.27, metalness: 0.85, normalMap: sequinNormals(), envMapIntensity: 1.9 }, 0) },
+    pleats: { label: "Pleats", sw: "repeating-linear-gradient(90deg,#b46a79 0 2px,#e7b4bd 2px 5px)", full: 0.95, bend: 0.42, drag: 1.2, wind: 0.5,
+      mat: fabricMat({ roughness: 0.5, sheen: 0.4, sheenRoughness: 0.4, sheenColor: white, normalMap: pleatNormals(), normalScale: new THREE.Vector2(1.5, 0), envMapIntensity: 0.9 }, 0) }
+  };
+  var SHEER = { chiffon: 1, tulle: 1, lace: 1 };
+  var fabricName = "satin", P = { full: 0.95, bend: 0.22, drag: 1.0, wind: 0.6 };
+  var m0 = /[?&]f=(\w+)/.exec(query);
+  if (m0 && FABRICS[m0[1]]) { fabricName = m0[1]; var f0 = FABRICS[fabricName]; P = { full: f0.full, bend: f0.bend, drag: f0.drag, wind: f0.wind }; }
+
+  // ---------- bodice, sash, neckline frill (turn with the form) ----------
+  var MB = 96, RB = 14, FN = 288, FR = 5;
+  var bodiceGeo = new THREE.BufferGeometry(), frillGeo = new THREE.BufferGeometry(), bodiceShade;
+  function neckY(phi) {
+    var ap = Math.abs(phi), front = (1 + Math.cos(phi)) / 2;
+    return WAIST + 0.30 + 0.05 * front + 0.036 * Math.exp(-Math.pow((ap - 0.5) / 0.28, 2)) - 0.028 * Math.exp(-Math.pow(phi / 0.2, 2));
+  }
+  (function () {
+    var pos = [], uv = [], idx = [], shade = [], fp = [], fi = [];
+    for (var j = 0; j <= RB; j++) for (var i = 0; i <= MB; i++) {
+      var phi = (i / MB) * Math.PI * 2 - Math.PI, t = j / RB, ap = Math.abs(phi);
+      var y = WAIST + (neckY(phi) - WAIST) * t, r = torsoR(y) + 0.008;
+      pos.push(r * EX * Math.sin(phi), y, r * EZ * Math.cos(phi));
+      uv.push(i / MB, t * 0.3);
+      var seams = [0.28 + 0.22 * t, 1.3, 2.5], sd = 1; // darker lines where the panels are sewn together
+      for (var q = 0; q < 3; q++) sd -= 0.32 * Math.exp(-Math.pow((ap - seams[q]) / 0.03, 2));
+      shade.push(sd);
+    }
+    for (var j2 = 0; j2 < RB; j2++) for (var i2 = 0; i2 < MB; i2++) {
+      var a = j2 * (MB + 1) + i2, b = a + 1, c = a + MB + 1, d = c + 1;
+      idx.push(a, b, c, b, d, c);
+    }
+    bodiceGeo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    bodiceGeo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+    bodiceGeo.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(pos.length), 3));
+    bodiceGeo.setIndex(idx); bodiceGeo.computeVertexNormals();
+    var n = bodiceGeo.attributes.normal;
+    for (var j3 = 0; j3 <= RB; j3++) {
+      var s = j3 * (MB + 1), e = s + MB;
+      var nx = n.getX(s) + n.getX(e), ny = n.getY(s) + n.getY(e), nz = n.getZ(s) + n.getZ(e), l = Math.hypot(nx, ny, nz) || 1;
+      n.setXYZ(s, nx / l, ny / l, nz / l); n.setXYZ(e, nx / l, ny / l, nz / l);
+    }
+    bodiceShade = new Float32Array(shade);
+    for (var i3 = 0; i3 <= FN; i3++) { // a gathered ruffle that rolls over the neckline
+      var ph = (i3 / FN) * Math.PI * 2 - Math.PI, w = i3 / FN * Math.PI * 2, fy = neckY(ph), fr = torsoR(fy) + 0.008;
+      var gath = Math.sin(w * 26 + 1.5 * Math.sin(w * 5));
+      for (var k = 0; k < FR; k++) {
+        var tk = k / (FR - 1), out = 0.004 + 0.05 * tk + 0.005 * tk * gath;
+        var up = 0.01 + 0.034 * tk - 0.07 * tk * tk + 0.004 * tk * Math.cos(w * 26 + 1.1);
+        fp.push((fr + out) * EX * Math.sin(ph), fy + up, (fr + out) * EZ * Math.cos(ph));
+      }
+    }
+    for (var i4 = 0; i4 < FN; i4++) for (var k2 = 0; k2 < FR - 1; k2++) {
+      var a2 = i4 * FR + k2, b2 = a2 + FR;
+      fi.push(a2, b2, a2 + 1, b2, b2 + 1, a2 + 1);
+    }
+    frillGeo.setAttribute("position", new THREE.Float32BufferAttribute(fp, 3));
+    frillGeo.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(fp.length), 3));
+    frillGeo.setIndex(fi); frillGeo.computeVertexNormals();
+  })();
+  var bodice = new THREE.Mesh(bodiceGeo, FABRICS.satin.mat); bodice.castShadow = true; dress.add(bodice);
+  var trimMat = new THREE.MeshPhysicalMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.8, sheen: 0.6, sheenRoughness: 0.6, sheenColor: white, envMapIntensity: 0.5 });
+  var frill = new THREE.Mesh(frillGeo, trimMat); frill.castShadow = true; dress.add(frill);
+  var RW = torsoR(WAIST) + 0.012;
+  var ribbon = new THREE.MeshPhysicalMaterial({ color: sc(0xe6dcc8), roughness: 0.3, sheen: 0.5, sheenColor: white, envMapIntensity: 1.0 });
+  var sash = new THREE.Mesh(new THREE.TorusGeometry(RW + 0.004, 0.011, 12, 96), ribbon);
+  sash.rotation.x = Math.PI / 2; sash.scale.set(EX, EZ, 2.0); sash.position.y = WAIST; dress.add(sash);
+  var DOME = WAIST - 0.02;
+
+  // ---------- skirt cloth ----------
+  var M = 144, NR = 38, LEN = 1.56, SEG = LEN / (NR - 1);
+  var NP = M * NR;
+  var X = new Float64Array(NP), Y = new Float64Array(NP), Z = new Float64Array(NP);
+  var QX = new Float64Array(NP), QY = new Float64Array(NP), QZ = new Float64Array(NP);
+  var pinX = new Float32Array(M), pinZ = new Float32Array(M);
+  function domeR(d, full) { return 0.105 + full * Math.pow(Math.sin(Math.min(1, Math.max(0, d) / DOME) * 1.5708), 0.85); }
+  var arcTab = [];
+  (function () { // how wide the petticoat is at each distance down the skirt
+    var n = 400, sAcc = 0, pr = domeR(0, 1), pd = 0; arcTab.push([0, pr]);
+    for (var k = 1; k <= n; k++) { var d = DOME * k / n, r = domeR(d, 1); sAcc += Math.hypot(r - pr, d - pd); arcTab.push([sAcc, r]); pr = r; pd = d; }
+  })();
+  function restR(sv) {
+    var lastA = arcTab[arcTab.length - 1];
+    if (sv >= lastA[0]) return lastA[1] + (sv - lastA[0]);
+    for (var k = 1; k < arcTab.length; k++) if (arcTab[k][0] >= sv) {
+      var a = arcTab[k - 1], b = arcTab[k], t = (sv - a[0]) / Math.max(1e-6, b[0] - a[0]);
+      return a[1] + (b[1] - a[1]) * t;
+    }
+    return lastA[1];
+  }
+  function restH(j) { var sv = j * SEG; return 2 * Math.PI * Math.max(0.13, restR(sv)) * (1.1 + 0.18 * sv / LEN) / M; }
+  (function () {
+    for (var i = 0; i < M; i++) {
+      var phi = (i / M) * Math.PI * 2;
+      pinX[i] = RW * EX * Math.sin(phi); pinZ[i] = RW * EZ * Math.cos(phi);
+      for (var j = 0; j < NR; j++) {
+        var s = j * SEG, id = j * M + i;
+        var tt = Math.min(1, s / 1.5) * Math.PI / 2;
+        var r = 0.13 + P.full * Math.sin(tt) * 1.03 + Math.max(0, s - 1.5) + (Math.sin(phi * 11) * 0.02 + Math.sin(phi * 17 + 1) * 0.012) * s;
+        X[id] = QX[id] = j === 0 ? pinX[i] : r * Math.sin(phi);
+        Z[id] = QZ[id] = j === 0 ? pinZ[i] : r * Math.cos(phi);
+        Y[id] = QY[id] = Math.max(FLOOR, WAIST - 1.0 * (1 - Math.cos(tt)));
+      }
+    }
+  })();
+  function makeList() { return { a: [], b: [], r: [] }; }
+  function freeze(l) { return { a: new Int32Array(l.a), b: new Int32Array(l.b), r: new Float64Array(l.r), n: l.a.length }; }
+  var cV = makeList(), cH = makeList(), cS = makeList(), cB = makeList();
+  (function () {
+    for (var j = 0; j < NR; j++) for (var i = 0; i < M; i++) {
+      var id = j * M + i, ri = j * M + (i + 1) % M, ri2 = j * M + (i + 2) % M;
+      if (j < NR - 1) { cV.a.push(id); cV.b.push(id + M); cV.r.push(SEG); }
+      if (j > 0) {
+        cH.a.push(id); cH.b.push(ri); cH.r.push(restH(j));
+        cB.a.push(id); cB.b.push(ri2); cB.r.push(restH(j) * 1.96);
+      }
+      if (j < NR - 1) {
+        var diag = Math.hypot(SEG, (restH(j) + restH(j + 1)) / 2);
+        cS.a.push(id); cS.b.push(ri + M); cS.r.push(diag);
+        cS.a.push(ri); cS.b.push(id + M); cS.r.push(diag);
+      }
+      if (j < NR - 2) { cB.a.push(id); cB.b.push(id + 2 * M); cB.r.push(SEG * 2); }
+    }
+    cV = freeze(cV); cH = freeze(cH); cS = freeze(cS); cB = freeze(cB);
+  })();
+
+  function solve(l, stiff, pushOnly) {
+    var a = l.a, b = l.b, r = l.r;
+    for (var c = 0; c < l.n; c++) {
+      var i = a[c], k = b[c];
+      var ex = X[k] - X[i], ey = Y[k] - Y[i], ez = Z[k] - Z[i];
+      var d = Math.sqrt(ex * ex + ey * ey + ez * ez);
+      if (d < 1e-9 || (pushOnly && d >= r[c])) continue;
+      var wi = i < M ? 0 : 1, wk = k < M ? 0 : 1, ws = wi + wk;
+      if (!ws) continue;
+      var f = (d - r[c]) / d * stiff / ws;
+      if (wi) { X[i] += ex * f; Y[i] += ey * f; Z[i] += ez * f; }
+      if (wk) { X[k] -= ex * f; Y[k] -= ey * f; Z[k] -= ez * f; }
+    }
+  }
+
+  var theta = 0, omega = 0, omegaTarget = 0, dragging = false;
+  var breezeT = 0, breezeDir = new THREE.Vector3(1, 0.15, 0);
+  var gust = new THREE.Vector3(), rayO = new THREE.Vector3(), rayD = new THREE.Vector3(0, 0, -1), gustOn = false;
+  var H = 1 / 90, ITER = 5;
+  if (/[?&]spin=1/.test(query)) omega = 7;
+
+  function collide(last) {
+    for (var id = M; id < NP; id++) {
+      var d = WAIST - Y[id], hit = false;
+      if (d > 0) {
+        var rb = domeR(d, P.full), u = d / DOME; if (u > 1) u = 1;
+        var ang = Math.atan2(X[id], Z[id]) - theta; // the petticoat is fluted, so the cloth falls into soft folds
+        rb *= 1 + 0.085 * Math.pow(u, 1.3) * (0.7 * Math.cos(14 * ang) + 0.3 * Math.cos(9 * ang + 1.3));
+        var r2 = X[id] * X[id] + Z[id] * Z[id];
+        if (r2 < rb * rb) {
+          var r = Math.sqrt(r2);
+          if (r < 1e-4) { X[id] = rb; } else { var s = rb / r; X[id] *= s; Z[id] *= s; }
+          hit = true;
+        }
+      }
+      if (Y[id] < FLOOR) {
+        Y[id] = FLOOR;
+        if (last) { QX[id] = X[id] - (X[id] - QX[id]) * 0.4; QZ[id] = Z[id] - (Z[id] - QZ[id]) * 0.4; }
+      }
+      if (hit && last) { // the petticoat carries the fabric around with it
+        var vx = X[id] - QX[id], vz = Z[id] - QZ[id];
+        var bx = omega * H * Z[id], bz = -omega * H * X[id];
+        QX[id] = X[id] - (vx + (bx - vx) * 0.3);
+        QZ[id] = Z[id] - (vz + (bz - vz) * 0.3);
+      }
+    }
+  }
+
+  function step(time) {
+    if (dragging) omega += (omegaTarget - omega) * 0.25; else omega *= Math.exp(-0.8 * H);
+    theta += omega * H;
+    var cs = Math.cos(theta), sn = Math.sin(theta);
+    for (var i = 0; i < M; i++) {
+      X[i] = pinX[i] * cs + pinZ[i] * sn; Z[i] = -pinX[i] * sn + pinZ[i] * cs; Y[i] = WAIST;
+    }
+    var damp = Math.exp(-P.drag * H), h2 = H * H, w = calm ? 0 : P.wind * 1.5;
+    var bz = 0; if (breezeT > 0) { bz = Math.sin(Math.PI * (1 - breezeT / 1.8)) * (7 + 9 * Math.min(1.6, P.wind)); breezeT -= H; }
+    var gx = gust.x, gy = gust.y, gz = gust.z, useGust = gustOn && (gx * gx + gy * gy + gz * gz) > 0.01;
+    for (var id = M; id < NP; id++) {
+      var x = X[id], y = Y[id], z = Z[id];
+      var ax = w * (Math.sin(time * 0.7 + y * 3.1 + z * 2.0) * 1.4 + Math.sin(time * 1.9 + x * 4) * 0.5);
+      var ay = -9.8;
+      var az = w * Math.cos(time * 0.53 + x * 2.5 + y * 2);
+      if (bz > 0) { var bv = bz * (0.65 + 0.35 * Math.sin(time * 5 + x * 3 + y * 4)); ax += breezeDir.x * bv; ay += breezeDir.y * bv; az += breezeDir.z * bv; }
+      if (useGust) {
+        var wx = x - rayO.x, wy = y - rayO.y, wz = z - rayO.z;
+        var t = wx * rayD.x + wy * rayD.y + wz * rayD.z;
+        var d2 = wx * wx + wy * wy + wz * wz - t * t;
+        if (d2 < 0.3) { var fall = Math.exp(-d2 / 0.09); ax += gx * fall; ay += gy * fall; az += gz * fall; }
+      }
+      var nx = x + (x - QX[id]) * damp + ax * h2;
+      var ny = y + (y - QY[id]) * damp + ay * h2;
+      var nz = z + (z - QZ[id]) * damp + az * h2;
+      QX[id] = x; QY[id] = y; QZ[id] = z; X[id] = nx; Y[id] = ny; Z[id] = nz;
+    }
+    for (var it = 0; it < ITER; it++) {
+      solve(cV, 1, false); solve(cH, 1, false); solve(cS, 0.5, false); solve(cB, P.bend, true);
+      collide(it === ITER - 1);
+    }
+    gust.multiplyScalar(Math.exp(-5 * H));
+  }
+  var om0 = omega; omega = 0;
+  for (var wu = 0; wu < 240; wu++) step(wu * H);
+  omega = om0;
+
+  var VW = M + 1, skirtGeo = new THREE.BufferGeometry();
+  (function () {
+    var uv = [], idx = [];
+    for (var j = 0; j < NR; j++) for (var i = 0; i <= M; i++) uv.push(i / M, j / (NR - 1));
+    for (var j2 = 0; j2 < NR - 1; j2++) for (var i2 = 0; i2 < M; i2++) {
+      var a = j2 * VW + i2, b = a + 1, c = a + VW, d = c + 1;
+      idx.push(a, c, b, b, c, d);
+    }
+    skirtGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(VW * NR * 3), 3));
+    skirtGeo.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(VW * NR * 3), 3));
+    skirtGeo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(VW * NR * 3), 3));
+    skirtGeo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+    skirtGeo.setIndex(idx);
+    skirtGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0.6, 0), 3);
+  })();
+  var skirt = new THREE.Mesh(skirtGeo, FABRICS[fabricName].mat);
+  skirt.castShadow = true; skirt.receiveShadow = true; skirt.frustumCulled = false; skirt.renderOrder = 3; scene.add(skirt);
+  function shell(k, order) { var m = new THREE.Mesh(skirtGeo, skirt.material); m.scale.set(k, 1, k); m.frustumCulled = false; m.visible = false; m.renderOrder = order; scene.add(m); return m; }
+  var lining = shell(0.9, 0), shellB = shell(0.935, 1), shellA = shell(0.968, 2);
+  lining.material = new THREE.MeshPhysicalMaterial({ vertexColors: true, color: new THREE.Color(0.7, 0.7, 0.7), roughness: 0.5, sheen: 0.4, sheenColor: white, side: THREE.DoubleSide, envMapIntensity: 0.7 });
+  lining.castShadow = true;
+
+  // ---------- petticoat: a lighter frill that peeks out under the hem ----------
+  var PR = 2, pettiGeo = new THREE.BufferGeometry();
+  (function () {
+    var idx = [];
+    for (var r = 0; r < PR - 1; r++) for (var i = 0; i < M; i++) { var a = r * VW + i, b = a + 1, c = a + VW, d = c + 1; idx.push(a, c, b, b, c, d); }
+    pettiGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(VW * PR * 3), 3));
+    pettiGeo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(VW * PR * 3), 3));
+    pettiGeo.setIndex(idx);
+  })();
+  var petti = new THREE.Mesh(pettiGeo, trimMat); petti.frustumCulled = false; petti.castShadow = true; scene.add(petti);
+  function syncPetti() {
+    var p = pettiGeo.attributes.position.array;
+    for (var r = 0; r < PR; r++) for (var i = 0; i <= M; i++) {
+      var o = (r * VW + i) * 3, ii = i % M, j = Math.min(NR - 1, NR - PR + 1 + r), id = j * M + ii;
+      if (r < PR - 1) { p[o] = X[id] * 0.992; p[o + 1] = Y[id] + 0.004; p[o + 2] = Z[id] * 0.992; }
+      else {
+        var b = id - M, e = 1.9 * (0.95 + 0.2 * Math.sin(ii * 6.283 * 14 / M) + 0.12 * Math.sin(ii * 6.283 * 23 / M + 1));
+        p[o] = X[id] + (X[id] - X[b]) * e; p[o + 2] = Z[id] + (Z[id] - Z[b]) * e;
+        p[o + 1] = Math.max(FLOOR - 0.008, Y[id] + (Y[id] - Y[b]) * e);
+      }
+    }
+    pettiGeo.attributes.position.needsUpdate = true;
+    pettiGeo.computeVertexNormals();
+  }
+
+  function syncSkirt() {
+    var p = skirtGeo.attributes.position.array;
+    for (var j = 0; j < NR; j++) for (var i = 0; i <= M; i++) {
+      var id = j * M + (i % M), o = (j * VW + i) * 3;
+      p[o] = X[id]; p[o + 1] = Y[id]; p[o + 2] = Z[id];
+    }
+    skirtGeo.attributes.position.needsUpdate = true;
+    skirtGeo.computeVertexNormals();
+    var n = skirtGeo.attributes.normal.array;
+    for (var j2 = 0; j2 < NR; j2++) {
+      var s = j2 * VW * 3, e = s + M * 3;
+      var nx = n[s] + n[e], ny = n[s + 1] + n[e + 1], nz = n[s + 2] + n[e + 2], l = Math.hypot(nx, ny, nz) || 1;
+      n[s] = n[e] = nx / l; n[s + 1] = n[e + 1] = ny / l; n[s + 2] = n[e + 2] = nz / l;
+    }
+  }
+
+  // ---------- paints: solid colors and blends ----------
+  function hslToRgb(h, s, l) {
+    var a = s * Math.min(l, 1 - l);
+    function f(n) { var k = (n + h / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }
+    return [f(0) * 255, f(8) * 255, f(4) * 255];
+  }
+  function solid(rgb) { return { rgb: rgb, lin: [lin(rgb[0]), lin(rgb[1]), lin(rgb[2])], fn: null }; }
+  function ramp(stops) { // blend up the dress, hem first
+    var L = stops.map(function (c) { return [lin(c[0]), lin(c[1]), lin(c[2])]; });
+    return {
+      rgb: stops[1], lin: L[1], fn: function (x, y, z, out) {
+        var t = Math.max(0, Math.min(0.9999, (y - 0.05) / 1.32)) * (L.length - 1), i = Math.floor(t), f = t - i;
+        for (var k = 0; k < 3; k++) out[k] = L[i][k] + (L[i + 1][k] - L[i][k]) * f;
+      }
+    };
+  }
+  var PAINTS = [
+    ["Blush", "#f0a3bf", solid([240, 163, 191])], ["Rose", "#dc4c82", solid([220, 76, 130])],
+    ["Wine", "#96283f", solid([150, 40, 63])], ["Coral", "#ec7058", solid([236, 112, 88])],
+    ["Marigold", "#e0a52e", solid([224, 165, 46])], ["Sage", "#86a070", solid([126, 160, 106])],
+    ["Mint", "#3cc48e", solid([60, 196, 142])], ["Aqua", "#2fb4cf", solid([47, 180, 207])],
+    ["Cornflower", "#3f72dc", solid([63, 114, 220])], ["Lilac", "#9668dc", solid([150, 104, 220])],
+    ["Plum", "#6c3490", solid([108, 52, 144])], ["Pearl", "#eee8e0", solid([238, 232, 224])],
+    ["Ink", "#2b2a44", solid([43, 42, 68])],
+    ["Sunset blend", "linear-gradient(#7a3fc8,#f0508c,#ffb43c)", ramp([[255, 180, 60], [240, 80, 140], [122, 63, 200]])],
+    ["Mermaid blend", "linear-gradient(#7450d8,#2e86e6,#32d6c0)", ramp([[50, 214, 192], [46, 134, 230], [116, 80, 216]])],
+    ["Dawn blend", "linear-gradient(#f58cc8,#c9a0f0,#7ec8ff)", ramp([[126, 200, 255], [201, 160, 240], [245, 140, 200]])],
+    ["Rainbow", "conic-gradient(#ff5a7a,#ffb43c,#5fd68a,#3ea0f0,#a064e6,#ff5a7a)", {
+      rgb: [255, 255, 255], lin: [1, 1, 1], fn: function (x, y, z, out) {
+        var c = hslToRgb((((Math.atan2(x, z) / 6.283 + y * 0.45) % 1) + 1) % 1 * 360, 0.8, 0.58);
+        out[0] = lin(c[0]); out[1] = lin(c[1]); out[2] = lin(c[2]);
+      }
+    }],
+    ["Surprise color", "radial-gradient(#fff 18%,#e58ab8 24%,#7d6cd0 72%)", null]
+  ];
+  var chosen = 1, duel = [PAINTS[1][2], PAINTS[8][2]], duelTurn = 1, splashes = [], splashId = 0, lastCast = 0;
+  function pickPaint() { return PAINTS[chosen][2] || solid(hslToRgb(Math.random() * 360, 0.7, 0.56)); }
+
+  function paintable(geo, turns, lighten, part) {
+    var n = geo.attributes.position.count, o = {
+      geo: geo, turns: turns, lighten: lighten || 0, part: part, n: n, cur: new Float32Array(n * 3), tgt: new Float32Array(n * 3),
+      fl: new Float32Array(n), stamp: new Int32Array(n)
+    };
+    var start = PAINTS[1][2].lin;
+    for (var i = 0; i < n; i++) for (var k = 0; k < 3; k++) o.cur[i * 3 + k] = o.tgt[i * 3 + k] = start[k];
+    return o;
+  }
+  // The dress is dyed in three parts. The trim is the neckline ruffle plus the petticoat edge.
+  var paints = [
+    paintable(skirtGeo, false, 0, "skirt"), paintable(bodiceGeo, true, 0, "bodice"),
+    paintable(frillGeo, true, 0.26, "trim"), paintable(pettiGeo, false, 0.42, "trim")
+  ], tmpC = [0, 0, 0];
+  var partChoice = "all"; // which part the next color lands on
+  paints[1].shade = bodiceShade;
+
+  function updatePaint(dt) {
+    var mix = 1 - Math.exp(-dt * 5), fadeF = Math.exp(-dt * 3), cs = Math.cos(theta), sn = Math.sin(theta);
+    for (var s = splashes.length - 1; s >= 0; s--) { splashes[s].r += (calm ? 4 : 1.5) * dt; if (splashes[s].r > 5) splashes.splice(s, 1); }
+    for (var q = 0; q < paints.length; q++) {
+      var o = paints[q], p = o.geo.attributes.position.array, col = o.geo.attributes.color.array, L = o.lighten;
+      for (var i = 0; i < o.n; i++) {
+        var x = p[i * 3], y = p[i * 3 + 1], z = p[i * 3 + 2];
+        if (o.turns) { var tx = x * cs + z * sn; z = -x * sn + z * cs; x = tx; }
+        for (var s2 = 0; s2 < splashes.length; s2++) {
+          var sp = splashes[s2];
+          if (o.stamp[i] === sp.id || !sp.parts[o.part]) continue;
+          var ex = x - sp.x, ey = y - sp.y, ez = z - sp.z;
+          // the edge of the color creeps unevenly, like dye soaking into cloth
+          var rr = sp.r * (1 + 0.2 * (Math.sin(x * 9 + sp.id * 1.3) * Math.sin(y * 11 + 1.7) + 0.6 * Math.sin(z * 8 + sp.id)));
+          if (ex * ex + ey * ey + ez * ez <= rr * rr) {
+            o.stamp[i] = sp.id; o.fl[i] = 1;
+            var c3 = sp.paint.lin;
+            if (sp.paint.fn) { sp.paint.fn(x, y, z, tmpC); c3 = tmpC; }
+            o.tgt[i * 3] = c3[0]; o.tgt[i * 3 + 1] = c3[1]; o.tgt[i * 3 + 2] = c3[2];
+            if (!calm && q === 0 && Math.random() < 0.012) spark(x, y, z, sp.paint.rgb, 0.5);
+          }
+        }
+        var f = o.fl[i] * 0.15; o.fl[i] *= fadeF;
+        for (var k = 0; k < 3; k++) {
+          var c = i * 3 + k; o.cur[c] += (o.tgt[c] - o.cur[c]) * mix;
+          var v = o.cur[c] + f; if (o.shade) v *= o.shade[i]; col[c] = L ? v + (1 - v) * L : v;
+        }
+      }
+      o.geo.attributes.color.needsUpdate = true;
+    }
+    var sk = paints[0], ar = 0, ag = 0, ab = 0, cnt = 0;
+    for (var v2 = 0; v2 < sk.n; v2 += 11) { ar += sk.cur[v2 * 3]; ag += sk.cur[v2 * 3 + 1]; ab += sk.cur[v2 * 3 + 2]; cnt++; }
+  }
+
+  // ---------- sparkles: bursts and drifting fairy dust ----------
+  var dot = document.createElement("canvas"); dot.width = dot.height = 64;
+  (function () {
+    var g = dot.getContext("2d"), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.2, "rgba(255,255,255,0.7)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  })();
+  var dotTex = new THREE.CanvasTexture(dot);
+  function pointCloud(n, size) {
+    var geo = new THREE.BufferGeometry(), pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+    for (var i = 0; i < n; i++) pos[i * 3 + 1] = -50;
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    var pts = new THREE.Points(geo, new THREE.PointsMaterial({ size: size, map: dotTex, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    pts.frustumCulled = false; scene.add(pts);
+    return { geo: geo, pos: pos, col: col };
+  }
+  var SN = 360, burst = pointCloud(SN, 0.05), sVel = new Float32Array(SN * 3), sLife = new Float32Array(SN), sBase = new Float32Array(SN * 3), sNext = 0;
+  function spark(x, y, z, rgb, speed) {
+    var i = sNext; sNext = (sNext + 1) % SN;
+    burst.pos[i * 3] = x; burst.pos[i * 3 + 1] = y; burst.pos[i * 3 + 2] = z;
+    var a = Math.random() * 6.283, u = Math.random() * 2 - 1, r = Math.sqrt(1 - u * u), v = speed * (0.3 + Math.random());
+    sVel[i * 3] = Math.cos(a) * r * v; sVel[i * 3 + 1] = u * v + 0.3; sVel[i * 3 + 2] = Math.sin(a) * r * v;
+    for (var k = 0; k < 3; k++) sBase[i * 3 + k] = (lin(rgb[k]) + 1) * 1.3;
+    sLife[i] = 1;
+  }
+  var DN = calm ? 30 : 70, dust = pointCloud(DN, 0.028), dSeed = [];
+  var dustTint = [[2.4, 2.1, 1.5], [2.2, 2.0, 1.9], [1.7, 2.0, 2.5], [2.2, 2.2, 2.2]];
+  for (var d0 = 0; d0 < DN; d0++) dSeed.push({ a: rnd(0, 6.283), r: rnd(0.45, 1.9), y: rnd(0, 2.4), v: rnd(0.04, 0.16), w: rnd(0.05, 0.3) * (d0 % 2 ? 1 : -1), p: rnd(0, 6.28), s: rnd(1, 3.5), t: dustTint[d0 % 4] });
+  function updateSparks(dt, time) {
+    for (var i = 0; i < SN; i++) {
+      if (sLife[i] <= 0) continue;
+      sLife[i] -= dt * 1.1;
+      if (sLife[i] <= 0) { burst.pos[i * 3 + 1] = -50; continue; }
+      sVel[i * 3 + 1] -= 0.9 * dt;
+      for (var k = 0; k < 3; k++) { burst.pos[i * 3 + k] += sVel[i * 3 + k] * dt; burst.col[i * 3 + k] = sBase[i * 3 + k] * sLife[i]; }
+    }
+    burst.geo.attributes.position.needsUpdate = true; burst.geo.attributes.color.needsUpdate = true;
+    var tt = calm ? 0 : time, swirl = 1 + Math.min(3, Math.abs(omega));
+    for (var d = 0; d < DN; d++) {
+      var s = dSeed[d];
+      if (!calm) { s.a += s.w * dt * swirl + omega * dt * 0.25; s.y += s.v * dt; if (s.y > 2.4) s.y = 0; }
+      dust.pos[d * 3] = Math.cos(s.a) * s.r; dust.pos[d * 3 + 1] = s.y; dust.pos[d * 3 + 2] = Math.sin(s.a) * s.r;
+      var edge = Math.min(1, s.y * 4, (2.4 - s.y) * 2), tw = (0.35 + 0.65 * Math.pow(0.5 + 0.5 * Math.sin(tt * s.s + s.p), 3)) * edge;
+      dust.col[d * 3] = s.t[0] * tw; dust.col[d * 3 + 1] = s.t[1] * tw; dust.col[d * 3 + 2] = s.t[2] * tw;
+    }
+    dust.geo.attributes.position.needsUpdate = true; dust.geo.attributes.color.needsUpdate = true;
+  }
+
+  function cast(x, y, z, paint, quiet) {
+    // Remember which part was chosen when the color was thrown, so switching parts mid-spread doesn't redirect it.
+    var parts = partChoice === "all" ? { skirt: 1, bodice: 1, trim: 1 } : {};
+    parts[partChoice] = 1;
+    splashes.push({ x: x, y: y, z: z, paint: paint, parts: parts, r: 0, id: ++splashId });
+    if (!quiet) { if (paint !== duel[1]) duel = [duel[1], paint]; duelTurn = 0; }
+    for (var i = 0, n = calm ? 8 : 40; i < n; i++) spark(x, y, z, paint.rgb, 1.3);
+  }
+
+  // ---------- camera and pointer ----------
+  var yaw = 0, pitch = 0.1, yawV = 0, pitchV = 0, dist = 5;
+  var y0 = /[?&]yaw=(-?[\d.]+)/.exec(query); if (y0) yaw = parseFloat(y0[1]);
+  var p0 = /[?&]pitch=(-?[\d.]+)/.exec(query); if (p0) pitch = parseFloat(p0[1]);
+  function placeCamera() {
+    camera.position.set(Math.sin(yaw) * Math.cos(pitch) * dist, 0.85 + Math.sin(pitch) * dist, Math.cos(yaw) * Math.cos(pitch) * dist);
+    camera.lookAt(0, 0.8, 0); camera.updateMatrixWorld();
+  }
+  var ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  var down = null, lastX = 0, lastY = 0, lastT = 0, orbiting = false;
+  function setRay(e) {
+    ndc.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+  }
+  function castAt(e) {
+    setRay(e);
+    var hits = ray.intersectObjects([skirt, bodice], false), p;
+    if (hits.length) p = hits[0].point;
+    else {
+      var o = ray.ray.origin, d = ray.ray.direction;
+      var t = (0 - o.x) * d.x + (0.7 - o.y) * d.y + (0 - o.z) * d.z;
+      p = o.clone().addScaledVector(d, t);
+    }
+    cast(p.x, p.y, p.z, pickPaint(), false);
+    lastCast = performance.now();
+  }
+  canvas.addEventListener("pointerdown", function (e) {
+    down = { x: e.clientX, y: e.clientY, t: performance.now(), moved: false };
+    lastX = e.clientX; lastY = e.clientY; lastT = down.t;
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  canvas.addEventListener("pointermove", function (e) {
+    var now = performance.now(), dt = Math.max(8, now - lastT) / 1000;
+    var mxp = e.clientX - lastX, myp = e.clientY - lastY;
+    if (down) {
+      if (Math.abs(e.clientX - down.x) + Math.abs(e.clientY - down.y) > 7) { down.moved = true; orbiting = true; canvas.classList.add("dragging"); }
+      if (orbiting) { yawV = -mxp * 0.0045 / dt; pitchV = myp * 0.0035 / dt; yaw += -mxp * 0.0045; pitch += myp * 0.0035; }
+    } else if (e.pointerType === "mouse") {
+      setRay(e);
+      rayO.copy(ray.ray.origin); rayD.copy(ray.ray.direction);
+      var right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+      var up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+      var k = 5 / window.innerHeight / dt;
+      gust.addScaledVector(right, mxp * k).addScaledVector(up, -myp * k);
+      gust.addScaledVector(rayD, Math.hypot(mxp, myp) * k * 0.4);
+      if (gust.length() > 45) gust.setLength(45);
+      gustOn = true;
+    }
+    lastX = e.clientX; lastY = e.clientY; lastT = now;
+  });
+  function endDrag() { down = null; orbiting = false; canvas.classList.remove("dragging"); }
+  canvas.addEventListener("pointerup", function (e) {
+    if (down && !down.moved && performance.now() - down.t < 500) castAt(e);
+    endDrag();
+  });
+  canvas.addEventListener("pointercancel", endDrag);
+  canvas.addEventListener("pointerleave", function () { gustOn = false; });
+
+  // ---------- sewing-room controls ----------
+  var swatchRow = document.getElementById("swatches"), swatchEls = [];
+  function throwColor() {
+    var rp = M + Math.floor(Math.random() * (NP - M));
+    cast(X[rp], Y[rp], Z[rp], pickPaint(), false); lastCast = performance.now();
+  }
+  PAINTS.forEach(function (p, i) { // one spool of thread per color
+    var b = document.createElement("button");
+    b.className = "spool"; b.id = "c-" + i; b.style.setProperty("--c", p[1]);
+    b.setAttribute("aria-label", p[0]); b.title = p[0];
+    b.setAttribute("aria-pressed", i === chosen ? "true" : "false");
+    b.appendChild(document.createElement("i"));
+    b.addEventListener("click", function () {
+      chosen = i;
+      swatchEls.forEach(function (o, k) { o.setAttribute("aria-pressed", k === i ? "true" : "false"); });
+      throwColor();
+    });
+    swatchRow.appendChild(b); swatchEls.push(b);
+  });
+  function pinked(nx, ny) { // zigzag outline, like cloth cut with pinking shears
+    var pts = [], d = 6, k;
+    for (k = 0; k <= nx; k++) pts.push((k / nx * 100).toFixed(1) + "% " + (k % 2 ? d : 0) + "%");
+    for (k = 1; k <= ny; k++) pts.push((100 - (k % 2 ? d * 0.75 : 0)) + "% " + (k / ny * 100).toFixed(1) + "%");
+    for (k = nx - 1; k >= 0; k--) pts.push((k / nx * 100).toFixed(1) + "% " + (100 - (k % 2 ? d : 0)) + "%");
+    for (k = ny - 1; k >= 1; k--) pts.push((k % 2 ? d * 0.75 : 0) + "% " + (k / ny * 100).toFixed(1) + "%");
+    return "polygon(" + pts.join(",") + ")";
+  }
+  var clothRow = document.getElementById("cloths"), clothEls = {}, pinkedPath = pinked(12, 8);
+  function setFabric(name) {
+    fabricName = name;
+    skirt.material = FABRICS[name].mat;
+    bodice.material = SHEER[name] ? FABRICS.satin.mat : FABRICS[name].mat;
+    lining.visible = true; shellA.visible = shellB.visible = name === "tulle" || name === "chiffon";
+    shellA.material = shellB.material = skirt.material;
+    Object.keys(clothEls).forEach(function (k) { clothEls[k].setAttribute("aria-pressed", k === name ? "true" : "false"); });
+  }
+  Object.keys(FABRICS).forEach(function (name) {
+    var b = document.createElement("button"), sw = document.createElement("i"), lb = document.createElement("span");
+    b.className = "cloth"; b.id = "f-" + name; sw.style.setProperty("--sw", FABRICS[name].sw); sw.style.clipPath = pinkedPath; lb.textContent = FABRICS[name].label;
+    b.appendChild(sw); b.appendChild(lb);
+    b.addEventListener("click", function () { setFabric(name); });
+    clothRow.appendChild(b); clothEls[name] = b;
+  });
+  setFabric(fabricName);
+  document.getElementById("twirl").addEventListener("click", function () { omega = (omega < 0 ? -1 : 1) * 8.5; });
+  document.getElementById("shake").addEventListener("click", function () { // toss the skirt up flat and let it fall
+    var cs = Math.cos(theta), sn = Math.sin(theta);
+    for (var j = 1; j < NR; j++) for (var i = 0; i < M; i++) {
+      var id = j * M + i, phi = (i / M) * Math.PI * 2, s = j * SEG, r = 0.13 + s * 0.93;
+      var lx = r * Math.sin(phi), lz = r * Math.cos(phi);
+      X[id] = QX[id] = lx * cs + lz * sn; Z[id] = QZ[id] = -lx * sn + lz * cs;
+      Y[id] = QY[id] = WAIST + 0.06 + s * 0.12 + 0.02 * Math.sin(phi * 7);
+    }
+  });
+  document.getElementById("breeze").addEventListener("click", function () {
+    breezeDir.setFromMatrixColumn(camera.matrixWorld, 0); breezeDir.y = 0.15; breezeT = 1.8;
+  });
+  var partEls = document.querySelectorAll(".part");
+  partEls.forEach(function (b) {
+    b.addEventListener("click", function () {
+      partChoice = b.id.slice(2);
+      partEls.forEach(function (o) { o.setAttribute("aria-pressed", o === b ? "true" : "false"); });
+    });
+  });
+  var argueBtn = document.getElementById("argue"), argue = !calm;
+  argueBtn.setAttribute("aria-pressed", argue ? "true" : "false");
+  argueBtn.addEventListener("click", function () {
+    argue = !argue; argueBtn.setAttribute("aria-pressed", argue ? "true" : "false");
+    lastCast = performance.now() - 2600;
+  });
+
+  // ---------- finishing pass: soft glow, then an old-print grade with grain ----------
+  var composer = null, finalPass = null;
+  if (THREE.EffectComposer && THREE.RenderPass && THREE.UnrealBloomPass && THREE.ShaderPass && renderer.capabilities.isWebGL2) {
+    try {
+      var rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
+      composer = new THREE.EffectComposer(renderer, rt);
+      composer.addPass(new THREE.RenderPass(scene, camera));
+      composer.addPass(new THREE.UnrealBloomPass(new THREE.Vector2(256, 256), 0.45, 0.7, 1.25));
+      finalPass = new THREE.ShaderPass({
+        uniforms: { tDiffuse: { value: null }, time: { value: 0 } },
+        vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+        fragmentShader: [
+          "uniform sampler2D tDiffuse; uniform float time; varying vec2 vUv;",
+          "void main(){",
+          "  vec3 c = texture2D(tDiffuse, vUv).rgb;",
+          "  float m = max(max(c.r, c.g), c.b);",
+          "  c *= (1.0 + m / 16.0) / (1.0 + m) * 1.45;",
+          "  c = pow(clamp(c, 0.0, 1.0), vec3(1.0 / 2.2));",
+          "  float l = dot(c, vec3(0.299, 0.587, 0.114));",
+          "  c = mix(vec3(l), c, 0.88) * vec3(1.03, 1.0, 0.92);", // a little faded and warm, like an old print
+          "  c = c * 0.95 + vec3(0.03, 0.026, 0.018);",
+          "  vec2 d = vUv - 0.5; c *= 1.0 - dot(d, d) * 0.75;",
+          "  vec2 gp = floor(gl_FragCoord.xy / 1.5) + floor(time * 12.0) * 7.0;",
+          "  float n = fract(sin(dot(gp, vec2(12.9898, 78.233))) * 43758.5453);",
+          "  c += (n - 0.5) * 0.06;",
+          "  gl_FragColor = vec4(c, 1.0);",
+          "}"
+        ].join("\n")
+      });
+      composer.addPass(finalPass);
+      renderer.toneMapping = THREE.NoToneMapping;
+    } catch (err) { composer = null; finalPass = null; }
+  }
+
+  // ---------- frame ----------
+  function resize() {
+    var w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, false);
+    if (composer) { composer.setPixelRatio(DPR); composer.setSize(w, h); }
+    camera.aspect = w / h;
+    var half = Math.tan(camera.fov * Math.PI / 360);
+    dist = Math.max(1.05 / half, 1.6 / (half * camera.aspect)) * 1.46;
+    camera.updateProjectionMatrix(); placeCamera();
+  }
+  var last = performance.now(), acc = 0, simT = 240 * H;
+  window.addEventListener("resize", resize); resize();
+  lastCast = last - 1400;
+  function frame(now) {
+    var dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (!orbiting) { yaw += yawV * dt; pitch += pitchV * dt; var dk = Math.exp(-dt * 5); yawV *= dk; pitchV *= dk; }
+    yaw = Math.max(-1.05, Math.min(1.05, yaw)); pitch = Math.max(0.03, Math.min(0.8, pitch));
+    placeCamera();
+    var F = FABRICS[fabricName], e = 1 - Math.exp(-dt * 2.2);
+    P.full += (F.full - P.full) * e; P.bend += (F.bend - P.bend) * e;
+    P.drag += (F.drag - P.drag) * e; P.wind += (F.wind - P.wind) * e;
+    acc += dt; var n = 0;
+    while (acc >= H && n < 4) { step(simT); simT += H; acc -= H; n++; }
+    if (n === 4) acc = 0;
+    if (argue && now - lastCast > 3800) {
+      var rp = M + Math.floor(Math.random() * (NP - M));
+      cast(X[rp], Y[rp], Z[rp], duel[duelTurn % 2], true);
+      duelTurn++; lastCast = now;
+    }
+    dress.rotation.y = theta;
+    var pulse = calm ? 1 : 0.8 + 0.3 * Math.sin(now / 1000 * 2.3);
+    for (var g = 0; g < glitterMats.length; g++) glitterMats[g].emissiveIntensity = glitterMats[g].userData.sparkle * pulse;
+    syncSkirt(); updatePaint(dt); syncPetti(); updateSparks(dt, now / 1000);
+    if (finalPass) finalPass.uniforms.time.value = now / 1000;
+    if (composer) composer.render(); else renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+  syncSkirt(); updatePaint(0.016); syncPetti();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
