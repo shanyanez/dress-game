@@ -78,8 +78,9 @@
   .cloth[aria-pressed="true"]::before { background-color: var(--rose); }
   .cloth[aria-pressed="true"] span { background: var(--rose); color: var(--linen); }
 
-  /* neckline: tissue-paper pattern pieces, cut in the shape of the bodice front and pinned down the left side */
-  .necks { position: fixed; left: 24px; top: 56%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 12px; }
+  /* neckline and sleeves: tissue-paper pattern pieces, cut in the shape of the bodice front and pinned down the left side */
+  .patterns { position: fixed; left: 24px; top: 56%; transform: translateY(-50%); display: flex; align-items: flex-start; gap: 14px; }
+  .necks { display: flex; flex-direction: column; gap: 12px; }
   .neck { position: relative; background: none; border: 0; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px;
     font-size: 0.66rem; color: var(--ink); filter: drop-shadow(2px 3px 0 rgba(18,12,8,0.5)); transition: transform .15s ease; }
   .neck:nth-child(odd) { transform: rotate(2deg); }
@@ -88,6 +89,7 @@
   .neck svg { display: block; width: 50px; height: 50px; overflow: visible; }
   .neck .tissue { fill: #e8dcc0; stroke: var(--ink); stroke-width: 1.3; stroke-linejoin: round; }
   .neck .sew { fill: none; stroke: var(--ink-soft); stroke-width: 0.9; stroke-dasharray: 2.2 2; }
+  .neck .strap { fill: none; stroke: var(--ink); stroke-width: 2.4; stroke-linecap: round; }
   .neck .pin { fill: var(--brass); stroke: var(--ink); stroke-width: 0.9; }
   .neck span { background: var(--linen); padding: 3px 6px 1px; }
   .neck[aria-pressed="true"] { transform: scale(1.12); }
@@ -132,7 +134,8 @@
     .cloth i { width: 54px; height: 40px; }
     .parts { bottom: 172px; gap: 7px; }
     .part { font-size: 0.62rem; padding: 3px 7px 1px; }
-    .necks { left: 8px; top: 92px; transform: none; gap: 8px; }
+    .patterns { left: 8px; top: 92px; transform: none; gap: 6px; }
+    .necks { gap: 8px; }
     .neck { font-size: 0.56rem; }
     .neck svg { width: 34px; height: 34px; }
     .neck span { padding: 2px 4px 0; }
@@ -146,7 +149,7 @@
 
 <div class="label">
   <h1>The Dress That Can't Decide</h1>
-  <p>Drag to look around. Tap the dress, or pick a spool, to throw a color; the plain spool at the end can be dyed any shade. The tags above the spools choose which part it lands on, and the paper patterns on the left change the neckline.</p>
+  <p>Drag to look around. Tap the dress, or pick a spool, to throw a color; the plain spool at the end can be dyed any shade. The tags above the spools choose which part it lands on, and the paper patterns on the left change the neckline and sleeves.</p>
 </div>
 
 <div class="actions" role="group" aria-label="Actions">
@@ -156,7 +159,10 @@
   <button class="act" id="argue" style="--b:#bfa15c" aria-pressed="true"><b></b><span>Argue</span></button>
 </div>
 
-<div class="necks" id="necks" role="group" aria-label="Neckline"></div>
+<div class="patterns">
+  <div class="necks" id="necks" role="group" aria-label="Neckline"></div>
+  <div class="necks" id="sleeves" role="group" aria-label="Sleeves or straps"></div>
+</div>
 <div class="cloths" id="cloths" role="group" aria-label="Cloth"></div>
 <div class="parts" id="parts" role="group" aria-label="Part of the dress to color">
   <button class="part" id="p-all" aria-pressed="true">Whole dress</button>
@@ -657,6 +663,64 @@
   var bodice = new THREE.Mesh(bodiceGeo, FABRICS.satin.mat); bodice.castShadow = true; dress.add(bodice);
   var trimMat = new THREE.MeshPhysicalMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.8, sheen: 0.6, sheenRoughness: 0.6, sheenColor: white, envMapIntensity: 0.5 });
   var frill = new THREE.Mesh(frillGeo, trimMat); frill.castShadow = true; dress.add(frill);
+
+  // ---------- straps and puff sleeves (the form has no arms, so these sit at the shoulders) ----------
+  // Finds the form's surface by walking out from a point inside the shoulder, in the up-and-down
+  // plane at sideways distance x, at angle a (0 points to the front, π/2 straight up, π to the back).
+  function onForm(x, cy, a) {
+    var dz = Math.cos(a), dy = Math.sin(a), lo = 0, hi = 0.4;
+    for (var k = 0; k < 24; k++) { // halve the gap each time: inside the form moves lo out, outside moves hi in
+      var m = (lo + hi) / 2, y = cy + dy * m, z = dz * m, r = torsoR(y);
+      if ((x / EX) * (x / EX) + (z / EZ) * (z / EZ) < r * r) lo = m; else hi = m;
+    }
+    return { y: cy + dy * hi, z: dz * hi, dy: dy, dz: dz, m: hi };
+  }
+  var strapGeo = new THREE.BufferGeometry();
+  (function () { // two ribbons over the shoulders; their ends tuck under the bodice front and back
+    var SX = 0.1, SW = 0.024, SN = 56, CY = WAIST + 0.33, pos = [], idx = [];
+    [-1, 1].forEach(function (sgn) {
+      var base = pos.length / 3;
+      for (var i = 0; i <= SN; i++) {
+        var a = -0.5 + (Math.PI + 1) * i / SN;
+        for (var e = -1; e <= 1; e += 2) {
+          var x = SX + e * SW / 2, f = onForm(x, CY, a), lift = 0.004;
+          pos.push(sgn * x, f.y + f.dy * lift, f.z + f.dz * lift);
+        }
+      }
+      for (var i2 = 0; i2 < SN; i2++) { var q = base + i2 * 2; idx.push(q, q + 1, q + 2, q + 1, q + 3, q + 2); }
+    });
+    strapGeo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    strapGeo.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(pos.length), 3));
+    strapGeo.setIndex(idx); strapGeo.computeVertexNormals();
+  })();
+  var puffGeo = new THREE.BufferGeometry();
+  (function () { // a gathered puff at the top of each arm, sitting just off the shoulder
+    var ball = new THREE.SphereGeometry(1, 40, 20), bp = ball.attributes.position, pos = [], idx = [];
+    var tilt = new THREE.Matrix4(), out = new THREE.Vector3();
+    [-1, 1].forEach(function (sgn) {
+      var base = pos.length / 3;
+      tilt.makeRotationZ(-sgn * 0.55); // tip the outer end down, the way a sleeve hangs off the shoulder
+      for (var i = 0; i < bp.count; i++) {
+        var x = bp.getX(i), y = bp.getY(i), z = bp.getZ(i), around = Math.atan2(z, y);
+        // x runs along the arm; the gathers run along it too, deepest in the middle and drawn in at the ends
+        var g = (1 + 0.1 * Math.sin(around * 14) * Math.sqrt(Math.max(0, 1 - x * x))) * (1 - 0.18 * Math.max(0, x) * Math.max(0, x));
+        out.set(sgn * x * 0.085, y * g * 0.056, z * g * 0.062).applyMatrix4(tilt);
+        pos.push(out.x + sgn * 0.2, out.y + WAIST + 0.345, out.z - 0.004);
+      }
+      for (var k = 0; k < ball.index.count; k += 3) { // the left one is a mirror copy, so its triangles are turned back round
+        var t0 = ball.index.getX(k), t1 = ball.index.getX(k + 1), t2 = ball.index.getX(k + 2);
+        if (sgn > 0) idx.push(base + t0, base + t1, base + t2); else idx.push(base + t0, base + t2, base + t1);
+      }
+    });
+    puffGeo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    puffGeo.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(pos.length), 3));
+    puffGeo.setIndex(idx); puffGeo.computeVertexNormals();
+  })();
+  var straps = new THREE.Mesh(strapGeo, FABRICS.satin.mat), puffs = new THREE.Mesh(puffGeo, FABRICS.satin.mat);
+  straps.castShadow = puffs.castShadow = true; dress.add(straps); dress.add(puffs);
+  var SLEEVES = { bare: "Bare", straps: "Straps", puff: "Puff sleeves" }, sleeveName = "bare";
+  var sl0 = /[?&]sleeve=(\w+)/.exec(query); if (sl0 && SLEEVES[sl0[1]]) sleeveName = sl0[1];
+
   var RW = torsoR(WAIST) + 0.012;
   var ribbon = new THREE.MeshPhysicalMaterial({ color: sc(0xe6dcc8), roughness: 0.3, sheen: 0.5, sheenColor: white, envMapIntensity: 1.0 });
   var sash = new THREE.Mesh(new THREE.TorusGeometry(RW + 0.004, 0.011, 12, 96), ribbon);
@@ -922,7 +986,8 @@
   // The dress is dyed in three parts. The trim is the neckline ruffle plus the petticoat edge.
   var paints = [
     paintable(skirtGeo, false, 0, "skirt"), paintable(bodiceGeo, true, 0, "bodice"),
-    paintable(frillGeo, true, 0.26, "trim"), paintable(pettiGeo, false, 0.42, "trim")
+    paintable(frillGeo, true, 0.26, "trim"), paintable(pettiGeo, false, 0.42, "trim"),
+    paintable(strapGeo, true, 0, "bodice"), paintable(puffGeo, true, 0, "bodice")
   ], tmpC = [0, 0, 0];
   var partChoice = "all"; // which part the next color lands on
   paints[1].shade = bodiceShade;
@@ -1128,6 +1193,7 @@
     fabricName = name;
     skirt.material = FABRICS[name].mat;
     bodice.material = SHEER[name] ? FABRICS.satin.mat : FABRICS[name].mat;
+    straps.material = puffs.material = bodice.material; // sleeves and straps are cut from the bodice cloth
     lining.visible = true; shellA.visible = shellB.visible = name === "tulle" || name === "chiffon";
     shellA.material = shellB.material = skirt.material;
     Object.keys(clothEls).forEach(function (k) { clothEls[k].setAttribute("aria-pressed", k === name ? "true" : "false"); });
@@ -1166,6 +1232,30 @@
     neckRow.appendChild(b); neckEls[name] = b;
   });
   setNeck(neckName);
+
+  // The second column of patterns: the same bodice front, with straps or puffs drawn on top.
+  var SLEEVE_MARKS = {
+    bare: "",
+    straps: '<path class="strap" d="M15 14 L16 3 M35 14 L34 3"/>',
+    puff: '<ellipse class="tissue" cx="7" cy="16" rx="6.5" ry="6"/><ellipse class="tissue" cx="43" cy="16" rx="6.5" ry="6"/>'
+  };
+  var sleeveRow = document.getElementById("sleeves"), sleeveEls = {};
+  function setSleeve(name) {
+    sleeveName = name; straps.visible = name === "straps"; puffs.visible = name === "puff";
+    Object.keys(sleeveEls).forEach(function (k) { sleeveEls[k].setAttribute("aria-pressed", k === name ? "true" : "false"); });
+  }
+  Object.keys(SLEEVES).forEach(function (name) {
+    var d = NECK_TOPS.straight + " L40 47 L10 47 Z";
+    var b = document.createElement("button"), lb = document.createElement("span");
+    b.className = "neck"; b.id = "s-" + name;
+    b.innerHTML = '<svg viewBox="0 0 50 50" aria-hidden="true">' + SLEEVE_MARKS[name] + '<path class="tissue" d="' + d + '"/>' +
+      '<path class="sew" d="' + d + '" transform="translate(25 27) scale(0.8) translate(-25 -27)"/>' +
+      '<circle class="pin" cx="25" cy="38" r="2.6"/></svg>';
+    lb.textContent = SLEEVES[name]; b.appendChild(lb);
+    b.addEventListener("click", function () { setSleeve(name); });
+    sleeveRow.appendChild(b); sleeveEls[name] = b;
+  });
+  setSleeve(sleeveName);
   document.getElementById("twirl").addEventListener("click", function () { omega = (omega < 0 ? -1 : 1) * 8.5; });
   document.getElementById("shake").addEventListener("click", function () { // toss the skirt up flat and let it fall
     var cs = Math.cos(theta), sn = Math.sin(theta);

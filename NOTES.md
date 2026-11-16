@@ -26,10 +26,16 @@ This file keeps track of what has been done on the dress game and what comes nex
   neckline is chosen, and colors already thrown on the bodice stay put when you switch. Checked in
   test renders (V-neck and Boat neck up close, and a phone-sized screen, where the patterns sit
   small on the wall to the left of the dress). Preview only, not live yet.
+- 2026-11-16 (later, Nez asked for it right away): Sleeves or straps. A second column of pattern
+  pieces next to the necklines: Bare, Straps (thin ribbons over the shoulders that tuck under the
+  bodice front and back) and Puff sleeves (gathered puffs sitting just off the shoulder, since the
+  form has no arms). They're cut from the same cloth as the bodice and take the bodice's color.
+  Checked in test renders: straps and puffs up close, V-neck with straps in velvet, and puffs on a
+  phone-sized screen. Preview only, not live yet.
 
 ## Next ideas
 
-1. Sleeves or straps (straps would pair nicely with the V-neck)
+1. Maybe more sleeve styles later (flutter sleeves, a halter strap)
 2. Skirt shapes and lengths (ball gown, A-line, tea length)
 3. Fabric prints (stripes, dots, florals)
 4. Decorations placed by clicking: bows, buttons, lace
