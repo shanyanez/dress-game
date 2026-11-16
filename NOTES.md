@@ -20,14 +20,19 @@ This file keeps track of what has been done on the dress game and what comes nex
   just the skirt and the gown still looks right. On phones the spool is at the far end of the
   rack, so you scroll the rack sideways to reach it (same as the last few spools already).
   Preview only, not live yet.
+- 2026-11-16: Four necklines to choose from: Sweetheart (the original), Straight, V-neck and Boat neck.
+  They are picked with little tissue-paper pattern pieces pinned down the left side, each cut in
+  the shape of the bodice front with its neckline along the top. The ruffle follows whichever
+  neckline is chosen, and colors already thrown on the bodice stay put when you switch. Checked in
+  test renders (V-neck and Boat neck up close, and a phone-sized screen, where the patterns sit
+  small on the wall to the left of the dress). Preview only, not live yet.
 
 ## Next ideas
 
-1. Different necklines (the current one is a sweetheart with a rolled ruffle)
-2. Sleeves or straps
-3. Skirt shapes and lengths (ball gown, A-line, tea length)
-4. Fabric prints (stripes, dots, florals)
-5. Decorations placed by clicking: bows, buttons, lace
-6. Save a dress and share it as a link
-7. A "take a picture" button
-8. Maybe remember the last dyed shade on the spool when saving a design (fits with step 6)
+1. Sleeves or straps (straps would pair nicely with the V-neck)
+2. Skirt shapes and lengths (ball gown, A-line, tea length)
+3. Fabric prints (stripes, dots, florals)
+4. Decorations placed by clicking: bows, buttons, lace
+5. Save a dress and share it as a link (include the neckline and the dyed shade)
+6. A "take a picture" button
+7. Maybe a gentler change between necklines (it swaps instantly right now)
