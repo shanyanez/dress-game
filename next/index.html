@@ -78,7 +78,7 @@
   .cloth[aria-pressed="true"]::before { background-color: var(--rose); }
   .cloth[aria-pressed="true"] span { background: var(--rose); color: var(--linen); }
 
-  /* neckline and sleeves: tissue-paper pattern pieces, cut in the shape of the bodice front and pinned down the left side */
+  /* neckline, sleeves and skirt: tissue-paper pattern pieces pinned down the left side */
   .patterns { position: fixed; left: 24px; top: 56%; transform: translateY(-50%); display: flex; align-items: flex-start; gap: 14px; }
   .necks { display: flex; flex-direction: column; gap: 12px; }
   .neck { position: relative; background: none; border: 0; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -149,7 +149,7 @@
 
 <div class="label">
   <h1>The Dress That Can't Decide</h1>
-  <p>Drag to look around. Tap the dress, or pick a spool, to throw a color; the plain spool at the end can be dyed any shade. The tags above the spools choose which part it lands on, and the paper patterns on the left change the neckline and sleeves.</p>
+  <p>Drag to look around. Tap the dress, or pick a spool, to throw a color; the plain spool at the end can be dyed any shade. The tags above the spools choose which part it lands on, and the paper patterns on the left change the neckline, sleeves and skirt.</p>
 </div>
 
 <div class="actions" role="group" aria-label="Actions">
@@ -162,6 +162,7 @@
 <div class="patterns">
   <div class="necks" id="necks" role="group" aria-label="Neckline"></div>
   <div class="necks" id="sleeves" role="group" aria-label="Sleeves or straps"></div>
+  <div class="necks" id="skirts" role="group" aria-label="Skirt shape"></div>
 </div>
 <div class="cloths" id="cloths" role="group" aria-label="Cloth"></div>
 <div class="parts" id="parts" role="group" aria-label="Part of the dress to color">
@@ -728,17 +729,33 @@
   var DOME = WAIST - 0.02;
 
   // ---------- skirt cloth ----------
-  var M = 144, NR = 38, LEN = 1.56, SEG = LEN / (NR - 1);
+  // Three skirts. They all hang from the same waist; what changes is how long the cloth is cut and
+  // the shape of the hoops underneath. "full" is how far the hoops reach out at the floor (1 is the
+  // big ball gown), and "cone" swaps the round dome for straight sides that flare evenly, which is
+  // what makes an A-line look like an A.
+  var SKIRTS = {
+    ball: { label: "Ball gown", len: 1.56, full: 1, cone: 0 },
+    aline: { label: "A-line", len: 1.2, full: 0.66, cone: 1 },
+    tea: { label: "Tea length", len: 1.0, full: 0.78, cone: 0 }
+  };
+  var skirtName = "ball", sk0 = /[?&]skirt=(\w+)/.exec(query); if (sk0 && SKIRTS[sk0[1]]) skirtName = sk0[1];
+  var hoop = { full: SKIRTS[skirtName].full, cone: SKIRTS[skirtName].cone }; // eases toward the chosen skirt so the change is gentle
+  var M = 144, NR = 38, LEN = SKIRTS[skirtName].len, SEG = LEN / (NR - 1);
   var NP = M * NR;
   var X = new Float64Array(NP), Y = new Float64Array(NP), Z = new Float64Array(NP);
   var QX = new Float64Array(NP), QY = new Float64Array(NP), QZ = new Float64Array(NP);
   var pinX = new Float32Array(M), pinZ = new Float32Array(M);
-  function domeR(d, full) { return 0.105 + full * Math.pow(Math.sin(Math.min(1, Math.max(0, d) / DOME) * 1.5708), 0.85); }
-  var arcTab = [];
-  (function () { // how wide the petticoat is at each distance down the skirt
-    var n = 400, sAcc = 0, pr = domeR(0, 1), pd = 0; arcTab.push([0, pr]);
-    for (var k = 1; k <= n; k++) { var d = DOME * k / n, r = domeR(d, 1); sAcc += Math.hypot(r - pr, d - pd); arcTab.push([sAcc, r]); pr = r; pd = d; }
-  })();
+  // How far out the hoops hold the skirt at a depth d below the waist: a round dome, straight sides, or a mix while changing.
+  function domeR(d, full, cone) {
+    var u = Math.min(1, Math.max(0, d) / DOME), dome = Math.pow(Math.sin(u * 1.5708), 0.85);
+    return 0.105 + full * (dome + (u - dome) * cone);
+  }
+  var arcTab;
+  function measureHoops(sk) { // how wide the petticoat is at each distance down the skirt, measured along the cloth
+    var n = 400, sAcc = 0, pr = domeR(0, sk.full, sk.cone), pd = 0; arcTab = [[0, pr]];
+    for (var k = 1; k <= n; k++) { var d = DOME * k / n, r = domeR(d, sk.full, sk.cone); sAcc += Math.hypot(r - pr, d - pd); arcTab.push([sAcc, r]); pr = r; pd = d; }
+  }
+  measureHoops(SKIRTS[skirtName]);
   function restR(sv) {
     var lastA = arcTab[arcTab.length - 1];
     if (sv >= lastA[0]) return lastA[1] + (sv - lastA[0]);
@@ -756,7 +773,7 @@
       for (var j = 0; j < NR; j++) {
         var s = j * SEG, id = j * M + i;
         var tt = Math.min(1, s / 1.5) * Math.PI / 2;
-        var r = 0.13 + P.full * Math.sin(tt) * 1.03 + Math.max(0, s - 1.5) + (Math.sin(phi * 11) * 0.02 + Math.sin(phi * 17 + 1) * 0.012) * s;
+        var r = 0.13 + P.full * hoop.full * Math.sin(tt) * 1.03 + Math.max(0, s - 1.5) + (Math.sin(phi * 11) * 0.02 + Math.sin(phi * 17 + 1) * 0.012) * s;
         X[id] = QX[id] = j === 0 ? pinX[i] : r * Math.sin(phi);
         Z[id] = QZ[id] = j === 0 ? pinZ[i] : r * Math.cos(phi);
         Y[id] = QY[id] = Math.max(FLOOR, WAIST - 1.0 * (1 - Math.cos(tt)));
@@ -765,8 +782,9 @@
   })();
   function makeList() { return { a: [], b: [], r: [] }; }
   function freeze(l) { return { a: new Int32Array(l.a), b: new Int32Array(l.b), r: new Float64Array(l.r), n: l.a.length }; }
-  var cV = makeList(), cH = makeList(), cS = makeList(), cB = makeList();
-  (function () {
+  var cV, cH, cS, cB;
+  function cutSkirt() { // work out every thread's resting length for the current skirt
+    cV = makeList(); cH = makeList(); cS = makeList(); cB = makeList();
     for (var j = 0; j < NR; j++) for (var i = 0; i < M; i++) {
       var id = j * M + i, ri = j * M + (i + 1) % M, ri2 = j * M + (i + 2) % M;
       if (j < NR - 1) { cV.a.push(id); cV.b.push(id + M); cV.r.push(SEG); }
@@ -782,7 +800,8 @@
       if (j < NR - 2) { cB.a.push(id); cB.b.push(id + 2 * M); cB.r.push(SEG * 2); }
     }
     cV = freeze(cV); cH = freeze(cH); cS = freeze(cS); cB = freeze(cB);
-  })();
+  }
+  cutSkirt();
 
   function solve(l, stiff, pushOnly) {
     var a = l.a, b = l.b, r = l.r;
@@ -809,7 +828,7 @@
     for (var id = M; id < NP; id++) {
       var d = WAIST - Y[id], hit = false;
       if (d > 0) {
-        var rb = domeR(d, P.full), u = d / DOME; if (u > 1) u = 1;
+        var rb = domeR(d, P.full * hoop.full, hoop.cone), u = d / DOME; if (u > 1) u = 1;
         var ang = Math.atan2(X[id], Z[id]) - theta; // the petticoat is fluted, so the cloth falls into soft folds
         rb *= 1 + 0.085 * Math.pow(u, 1.3) * (0.7 * Math.cos(14 * ang) + 0.3 * Math.cos(9 * ang + 1.3));
         var r2 = X[id] * X[id] + Z[id] * Z[id];
@@ -1256,8 +1275,36 @@
     sleeveRow.appendChild(b); sleeveEls[name] = b;
   });
   setSleeve(sleeveName);
+
+  // The third column: a flat skirt panel for each shape, waistband at the top and hem at the bottom.
+  var SKIRT_PIECES = {
+    ball: "M19 3 L31 3 Q35 20 47 42 Q25 48 3 42 Q15 20 19 3 Z",
+    aline: "M19 3 L31 3 L43 43 Q25 47 7 43 Z",
+    tea: "M19 3 L31 3 Q35 15 45 30 Q25 35 5 30 Q15 15 19 3 Z"
+  };
+  var skirtRow = document.getElementById("skirts"), skirtEls = {};
+  function setSkirt(name, quiet) {
+    skirtName = name; LEN = SKIRTS[name].len; SEG = LEN / (NR - 1);
+    measureHoops(SKIRTS[name]); cutSkirt();
+    // Left alone, cloth that suddenly got longer or wider tends to land in crumpled flaps at the hem,
+    // so give it a shake, like you would when trying a new skirt on, and it falls fresh over the new hoops.
+    if (!quiet) shakeOut();
+    Object.keys(skirtEls).forEach(function (k) { skirtEls[k].setAttribute("aria-pressed", k === name ? "true" : "false"); });
+  }
+  Object.keys(SKIRTS).forEach(function (name) {
+    var d = SKIRT_PIECES[name];
+    var b = document.createElement("button"), lb = document.createElement("span");
+    b.className = "neck"; b.id = "k-" + name;
+    b.innerHTML = '<svg viewBox="0 0 50 50" aria-hidden="true"><path class="tissue" d="' + d + '"/>' +
+      '<path class="sew" d="' + d + '" transform="translate(25 25) scale(0.8) translate(-25 -25)"/>' +
+      '<circle class="pin" cx="25" cy="17" r="2.6"/></svg>';
+    lb.textContent = SKIRTS[name].label; b.appendChild(lb);
+    b.addEventListener("click", function () { setSkirt(name); });
+    skirtRow.appendChild(b); skirtEls[name] = b;
+  });
+  setSkirt(skirtName, true);
   document.getElementById("twirl").addEventListener("click", function () { omega = (omega < 0 ? -1 : 1) * 8.5; });
-  document.getElementById("shake").addEventListener("click", function () { // toss the skirt up flat and let it fall
+  function shakeOut() { // toss the skirt up flat and let it fall
     var cs = Math.cos(theta), sn = Math.sin(theta);
     for (var j = 1; j < NR; j++) for (var i = 0; i < M; i++) {
       var id = j * M + i, phi = (i / M) * Math.PI * 2, s = j * SEG, r = 0.13 + s * 0.93;
@@ -1265,7 +1312,8 @@
       X[id] = QX[id] = lx * cs + lz * sn; Z[id] = QZ[id] = -lx * sn + lz * cs;
       Y[id] = QY[id] = WAIST + 0.06 + s * 0.12 + 0.02 * Math.sin(phi * 7);
     }
-  });
+  }
+  document.getElementById("shake").addEventListener("click", shakeOut);
   document.getElementById("breeze").addEventListener("click", function () {
     breezeDir.setFromMatrixColumn(camera.matrixWorld, 0); breezeDir.y = 0.15; breezeT = 1.8;
   });
@@ -1338,6 +1386,7 @@
     var F = FABRICS[fabricName], e = 1 - Math.exp(-dt * 2.2);
     P.full += (F.full - P.full) * e; P.bend += (F.bend - P.bend) * e;
     P.drag += (F.drag - P.drag) * e; P.wind += (F.wind - P.wind) * e;
+    var SK = SKIRTS[skirtName]; hoop.full += (SK.full - hoop.full) * e; hoop.cone += (SK.cone - hoop.cone) * e;
     acc += dt; var n = 0;
     while (acc >= H && n < 4) { step(simT); simT += H; acc -= H; n++; }
     if (n === 4) acc = 0;

@@ -33,12 +33,21 @@ This file keeps track of what has been done on the dress game and what comes nex
   Checked in test renders: straps and puffs up close, V-neck with straps in velvet, and puffs on a
   phone-sized screen. Preview only, not live yet.
 
+- 2026-11-17: Skirt shapes. A third column of pattern pieces (little flat skirt panels) picks
+  Ball gown (the original), A-line (straight sides that flare evenly to the floor) and Tea length
+  (a shorter, softer bell that stops at mid-calf). Underneath, each one changes the hoops the cloth
+  hangs on and how long the cloth is cut; when you switch, the skirt gets a quick shake so it falls
+  fresh over the new shape instead of landing in crumpled flaps. Checked in test renders: all three
+  shapes in satin, the A-line in velvet from the side, tea length in tulle on a phone-sized screen,
+  and clicking from A-line to tea length to ball gown in a live browser with no errors.
+  Preview only, not live yet.
+
 ## Next ideas
 
 1. Maybe more sleeve styles later (flutter sleeves, a halter strap)
-2. Skirt shapes and lengths (ball gown, A-line, tea length)
+2. Maybe more skirts later (a mermaid shape, a high-low hem)
 3. Fabric prints (stripes, dots, florals)
 4. Decorations placed by clicking: bows, buttons, lace
-5. Save a dress and share it as a link (include the neckline and the dyed shade)
+5. Save a dress and share it as a link (include the neckline, sleeves, skirt shape and the dyed shade)
 6. A "take a picture" button
 7. Maybe a gentler change between necklines (it swaps instantly right now)
