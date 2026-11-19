@@ -96,6 +96,22 @@
   .neck[aria-pressed="true"] .pin { fill: var(--rose); }
   .neck[aria-pressed="true"] span { background: var(--rose); color: var(--linen); }
 
+  /* prints: carved wooden printing blocks, face up, with the motif inked in rose; they sit under the fabric samples */
+  .prints { position: fixed; right: 18px; top: calc(54% + 184px); display: flex; gap: 8px; }
+  .block { background: none; border: 0; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 0.62rem; color: var(--ink); filter: drop-shadow(2px 3px 0 rgba(18,12,8,0.5)); transition: transform .15s ease; }
+  .block:nth-child(odd) { transform: rotate(-2deg); }
+  .block:nth-child(even) { transform: rotate(1.5deg); }
+  .block:hover { transform: translateY(-3px); }
+  .block svg { display: block; width: 36px; height: 36px; }
+  .block .side { fill: var(--wood); stroke: var(--ink); stroke-width: 1.3; stroke-linejoin: round; }
+  .block .face { fill: #c9a77a; stroke: var(--ink); stroke-width: 1.3; stroke-linejoin: round; }
+  .block .grain { fill: none; stroke: rgba(51,38,31,0.35); stroke-width: 0.8; }
+  .block .cut { fill: var(--rose); stroke: none; }
+  .block span { background: var(--linen); padding: 3px 5px 1px; }
+  .block[aria-pressed="true"] { transform: translateY(-5px); }
+  .block[aria-pressed="true"] span { background: var(--rose); color: var(--linen); }
+
   /* which part gets the color: small tags above the spools */
   .parts { position: fixed; bottom: 106px; left: 50%; transform: translateX(-50%); display: flex; gap: 9px; }
   .part { background: var(--linen); color: var(--ink); border: 0; padding: 4px 9px 2px; font-size: 0.7rem; letter-spacing: 0.04em; cursor: pointer; box-shadow: 1px 2px 0 rgba(18,12,8,0.5); }
@@ -139,6 +155,10 @@
     .neck { font-size: 0.56rem; }
     .neck svg { width: 34px; height: 34px; }
     .neck span { padding: 2px 4px 0; }
+    .prints { right: 8px; top: 92px; flex-direction: column; gap: 7px; }
+    .block { font-size: 0.54rem; }
+    .block svg { width: 28px; height: 28px; }
+    .block span { padding: 2px 4px 0; }
     .rack { left: 12px; right: 12px; transform: none; overflow-x: auto; justify-content: flex-start; max-width: none; padding: 14px 12px 0; }
   }
 </style>
@@ -149,7 +169,7 @@
 
 <div class="label">
   <h1>The Dress That Can't Decide</h1>
-  <p>Drag to look around. Tap the dress, or pick a spool, to throw a color; the plain spool at the end can be dyed any shade. The tags above the spools choose which part it lands on, and the paper patterns on the left change the neckline, sleeves and skirt.</p>
+  <p>Drag to look around. Tap the dress, or pick a spool, to throw a color; the plain spool at the end can be dyed any shade. The tags above the spools choose which part it lands on, the paper patterns on the left change the neckline, sleeves and skirt, and the carved blocks print the cloth.</p>
 </div>
 
 <div class="actions" role="group" aria-label="Actions">
@@ -165,6 +185,7 @@
   <div class="necks" id="skirts" role="group" aria-label="Skirt shape"></div>
 </div>
 <div class="cloths" id="cloths" role="group" aria-label="Cloth"></div>
+<div class="prints" id="prints" role="group" aria-label="Print"></div>
 <div class="parts" id="parts" role="group" aria-label="Part of the dress to color">
   <button class="part" id="p-all" aria-pressed="true">Whole dress</button>
   <button class="part" id="p-bodice" aria-pressed="false">Bodice</button>
@@ -551,11 +572,82 @@
     var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(24, 9); t.anisotropy = MAXA;
     return t;
   }
+
+  // ---------- prints: stripes, dots and little flowers stamped over whatever color the cloth is dyed ----------
+  // Each print is drawn once on a small tile that repeats across the cloth. The tile isn't a picture
+  // with colors in it; it's two masks. Red marks where the print darkens the dye, green marks where it
+  // goes over in cream. That way the print always takes on the dress's own color, whatever gets thrown.
+  // "size" is how many meters of cloth one tile covers, so a dot is the same size on the waist and the hem.
+  function printTile(size, draw) {
+    var c = document.createElement("canvas"); c.width = c.height = 512;
+    var g = c.getContext("2d"); g.fillStyle = "#000"; g.fillRect(0, 0, 512, 512);
+    draw(g, rng(7));
+    var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = MAXA;
+    return { map: t, size: size };
+  }
+  var DARK = "rgb(255,0,0)", CREAM = "rgb(0,255,0)";
+  function wrapped(g, x, y, fn) { // draw a motif, plus copies on the far side if it hangs over an edge of the tile
+    for (var dx = -512; dx <= 512; dx += 512) for (var dy = -512; dy <= 512; dy += 512) { g.save(); g.translate(x + dx, y + dy); fn(); g.restore(); }
+  }
+  var PRINTS = {
+    plain: { label: "Plain" },
+    stripes: { label: "Stripes", tile: printTile(0.14, function (g) { // ticking: a wide darker band with a cream thread down each side
+      g.fillStyle = DARK; g.fillRect(150, 0, 150, 512);
+      g.fillStyle = CREAM; g.fillRect(118, 0, 14, 512); g.fillRect(318, 0, 14, 512);
+    }) },
+    dots: { label: "Dots", tile: printTile(0.1, function (g, R) { // cream polka dots, each a touch uneven like a hand stamp
+      g.fillStyle = CREAM;
+      [[128, 128], [384, 384]].forEach(function (d) {
+        wrapped(g, d[0], d[1], function () { g.rotate(R() * 3); g.beginPath(); g.ellipse(0, 0, 70, 64, 0, 0, 6.283); g.fill(); });
+      });
+    }) },
+    florals: { label: "Florals", tile: printTile(0.17, function (g, R) { // scattered little flowers: cream petals, dark hearts and leaves
+      var spots = [[70, 90], [300, 60], [190, 250], [430, 230], [90, 400], [330, 440]];
+      spots.forEach(function (sp) {
+        var turn = R() * 6.283, size = 0.8 + R() * 0.35;
+        wrapped(g, sp[0], sp[1], function () {
+          g.rotate(turn); g.scale(size, size);
+          g.fillStyle = DARK; // two leaves tucked behind the flower
+          for (var l = 0; l < 2; l++) { g.beginPath(); g.ellipse(0, 52, 15, 30, 0, 0, 6.283); g.fill(); g.rotate(2.4); }
+          g.fillStyle = CREAM;
+          for (var p = 0; p < 5; p++) { g.beginPath(); g.ellipse(0, -24, 15, 22, 0, 0, 6.283); g.fill(); g.rotate(1.2566); }
+          g.fillStyle = DARK; g.beginPath(); g.arc(0, 0, 11, 0, 6.283); g.fill(); // the dark heart goes on last, over the petals
+        });
+      });
+    }) }
+  };
+  var printName = "plain", pr0 = /[?&]print=(\w+)/.exec(query); if (pr0 && PRINTS[pr0[1]]) printName = pr0[1];
+  // These are shared by every cloth, so changing the print here changes it on all of them at once.
+  var printU = { printMap: { value: null }, printScale: { value: 1 }, printOn: { value: 0 } };
+  function usePrint(name) {
+    var tile = PRINTS[name].tile;
+    printName = name; printU.printOn.value = tile ? 1 : 0;
+    if (tile) { printU.printMap.value = tile.map; printU.printScale.value = 1 / tile.size; }
+  }
+  // three.js has no slot for a second pattern on top of the dye, so add a few lines to its cloth shader:
+  // read the print tile at this spot of cloth (measured in meters, see "printUv" on each piece below),
+  // then darken or cream the dyed color where the masks say.
+  function addPrint(shader) {
+    Object.assign(shader.uniforms, printU);
+    shader.vertexShader = "attribute vec2 printUv;\nvarying vec2 vPrintUv;\n" +
+      shader.vertexShader.replace("#include <uv_vertex>", "#include <uv_vertex>\n  vPrintUv = printUv;");
+    shader.fragmentShader = "uniform sampler2D printMap;\nuniform float printScale, printOn;\nvarying vec2 vPrintUv;\n" +
+      shader.fragmentShader.replace("#include <color_fragment>", [
+        "#include <color_fragment>",
+        "  if (printOn > 0.5) {",
+        "    vec2 pm = texture2D(printMap, vPrintUv * printScale).rg;",
+        "    diffuseColor.rgb *= 1.0 - 0.45 * pm.r;",
+        "    diffuseColor.rgb = mix(diffuseColor.rgb, diffuse * vec3(0.78, 0.72, 0.6), 0.8 * pm.g);",
+        "  }"
+      ].join("\n"));
+  }
+
   var glitter = glitterMap(), glitterMats = [];
   function fabricMat(o, sparkle) {
     o.vertexColors = true; o.side = THREE.DoubleSide;
     if (sparkle) { o.emissive = white; o.emissiveMap = glitter; o.emissiveIntensity = sparkle; }
     var m = new THREE.MeshPhysicalMaterial(o);
+    m.onBeforeCompile = addPrint;
     if (sparkle) { m.userData.sparkle = sparkle; glitterMats.push(m); }
     return m;
   }
@@ -610,11 +702,12 @@
   // Builds the bodice and its ruffle for the current neckline. The first time it also sets up
   // the mesh layout; after that only the points move, so the colors already thrown stay put.
   function cutBodice() {
-    var first = !bodiceGeo.attributes.position, pos = [], uv = [], idx = [], shade = [], fp = [], fi = [];
+    var first = !bodiceGeo.attributes.position, pos = [], uv = [], pu = [], idx = [], shade = [], fp = [], fi = [];
     for (var j = 0; j <= RB; j++) for (var i = 0; i <= MB; i++) {
       var phi = (i / MB) * Math.PI * 2 - Math.PI, t = j / RB, ap = Math.abs(phi);
       var y = WAIST + (neckY(phi) - WAIST) * t, r = torsoR(y) + 0.008;
       pos.push(r * EX * Math.sin(phi), y, r * EZ * Math.cos(phi));
+      pu.push(phi * r * (EX + EZ) / 2, y); // where this point sits on the flat cloth, in meters, for the print
       if (!first) continue;
       uv.push(i / MB, t * 0.3);
       var seams = [0.28 + 0.22 * t, 1.3, 2.5], sd = 1; // darker lines where the panels are sewn together
@@ -641,6 +734,7 @@
       }
       bodiceGeo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
       bodiceGeo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+      bodiceGeo.setAttribute("printUv", new THREE.Float32BufferAttribute(pu, 2));
       bodiceGeo.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(pos.length), 3));
       bodiceGeo.setIndex(idx);
       frillGeo.setAttribute("position", new THREE.Float32BufferAttribute(fp, 3));
@@ -649,6 +743,7 @@
       bodiceShade = new Float32Array(shade);
     } else {
       bodiceGeo.attributes.position.array.set(pos); bodiceGeo.attributes.position.needsUpdate = true;
+      bodiceGeo.attributes.printUv.array.set(pu); bodiceGeo.attributes.printUv.needsUpdate = true;
       frillGeo.attributes.position.array.set(fp); frillGeo.attributes.position.needsUpdate = true;
     }
     bodiceGeo.computeVertexNormals(); frillGeo.computeVertexNormals();
@@ -678,7 +773,7 @@
   }
   var strapGeo = new THREE.BufferGeometry();
   (function () { // two ribbons over the shoulders; their ends tuck under the bodice front and back
-    var SX = 0.1, SW = 0.024, SN = 56, CY = WAIST + 0.33, pos = [], idx = [];
+    var SX = 0.1, SW = 0.024, SN = 56, CY = WAIST + 0.33, pos = [], pu = [], idx = [];
     [-1, 1].forEach(function (sgn) {
       var base = pos.length / 3;
       for (var i = 0; i <= SN; i++) {
@@ -686,17 +781,19 @@
         for (var e = -1; e <= 1; e += 2) {
           var x = SX + e * SW / 2, f = onForm(x, CY, a), lift = 0.004;
           pos.push(sgn * x, f.y + f.dy * lift, f.z + f.dz * lift);
+          pu.push(e * SW / 2, a * f.m); // across and along the ribbon, roughly in meters
         }
       }
       for (var i2 = 0; i2 < SN; i2++) { var q = base + i2 * 2; idx.push(q, q + 1, q + 2, q + 1, q + 3, q + 2); }
     });
     strapGeo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
     strapGeo.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(pos.length), 3));
+    strapGeo.setAttribute("printUv", new THREE.Float32BufferAttribute(pu, 2));
     strapGeo.setIndex(idx); strapGeo.computeVertexNormals();
   })();
   var puffGeo = new THREE.BufferGeometry();
   (function () { // a gathered puff at the top of each arm, sitting just off the shoulder
-    var ball = new THREE.SphereGeometry(1, 40, 20), bp = ball.attributes.position, pos = [], idx = [];
+    var ball = new THREE.SphereGeometry(1, 40, 20), bp = ball.attributes.position, pos = [], pu = [], idx = [];
     var tilt = new THREE.Matrix4(), out = new THREE.Vector3();
     [-1, 1].forEach(function (sgn) {
       var base = pos.length / 3;
@@ -707,6 +804,7 @@
         var g = (1 + 0.1 * Math.sin(around * 14) * Math.sqrt(Math.max(0, 1 - x * x))) * (1 - 0.18 * Math.max(0, x) * Math.max(0, x));
         out.set(sgn * x * 0.085, y * g * 0.056, z * g * 0.062).applyMatrix4(tilt);
         pos.push(out.x + sgn * 0.2, out.y + WAIST + 0.345, out.z - 0.004);
+        pu.push(around * 0.06, x * 0.085); // around the puff and along the arm, roughly in meters
       }
       for (var k = 0; k < ball.index.count; k += 3) { // the left one is a mirror copy, so its triangles are turned back round
         var t0 = ball.index.getX(k), t1 = ball.index.getX(k + 1), t2 = ball.index.getX(k + 2);
@@ -715,6 +813,7 @@
     });
     puffGeo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
     puffGeo.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(pos.length), 3));
+    puffGeo.setAttribute("printUv", new THREE.Float32BufferAttribute(pu, 2));
     puffGeo.setIndex(idx); puffGeo.computeVertexNormals();
   })();
   var straps = new THREE.Mesh(strapGeo, FABRICS.satin.mat), puffs = new THREE.Mesh(puffGeo, FABRICS.satin.mat);
@@ -888,21 +987,38 @@
   for (var wu = 0; wu < 240; wu++) step(wu * H);
   omega = om0;
 
-  var VW = M + 1, skirtGeo = new THREE.BufferGeometry();
+  // The skirt is drawn as tall panels (gores), the way a gown this wide is really sewn. The cloth
+  // underneath is still one piece; the panels only matter for the print. Each panel has its own
+  // edge points, so where two panels meet the print can simply stop at the seam, like on real cloth.
+  // thread[c] says which thread of the cloth each column of the drawn skirt sits on.
+  var GORES = 16, GW = M / GORES, VW = GORES * (GW + 1), thread = [], seams = [];
+  for (var g = 0; g < GORES; g++) for (var k = 0; k <= GW; k++) thread.push((g * GW + k) % M);
+  for (var g2 = 0; g2 < GORES; g2++) seams.push([g2 * (GW + 1) + GW, ((g2 + 1) % GORES) * (GW + 1)]); // the two columns at each seam
+  var skirtGeo = new THREE.BufferGeometry();
   (function () {
     var uv = [], idx = [];
-    for (var j = 0; j < NR; j++) for (var i = 0; i <= M; i++) uv.push(i / M, j / (NR - 1));
-    for (var j2 = 0; j2 < NR - 1; j2++) for (var i2 = 0; i2 < M; i2++) {
-      var a = j2 * VW + i2, b = a + 1, c = a + VW, d = c + 1;
-      idx.push(a, c, b, b, c, d);
+    for (var j = 0; j < NR; j++) for (var c = 0; c < VW; c++) uv.push((Math.floor(c / (GW + 1)) * GW + c % (GW + 1)) / M, j / (NR - 1));
+    for (var j2 = 0; j2 < NR - 1; j2++) for (var g = 0; g < GORES; g++) for (var k = 0; k < GW; k++) {
+      var a = j2 * VW + g * (GW + 1) + k, b = a + 1, c2 = a + VW, d = c2 + 1;
+      idx.push(a, c2, b, b, c2, d);
     }
     skirtGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(VW * NR * 3), 3));
     skirtGeo.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(VW * NR * 3), 3));
     skirtGeo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(VW * NR * 3), 3));
     skirtGeo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+    skirtGeo.setAttribute("printUv", new THREE.BufferAttribute(new Float32Array(VW * NR * 2), 2)); // filled in by markSkirtCloth
     skirtGeo.setIndex(idx);
     skirtGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0.6, 0), 3);
   })();
+  // Where each point of the skirt sits on its flat panel, in meters, for the print: sideways is the
+  // distance from the middle of the panel, down is down, so the print runs straight down each one.
+  // (Measuring all the way round from one seam instead tilts the print more and more as the skirt widens.)
+  // It depends on how the skirt is cut, so it's redone whenever the skirt shape changes.
+  function markSkirtCloth() {
+    var a = skirtGeo.attributes.printUv;
+    for (var j = 0; j < NR; j++) for (var c = 0; c < VW; c++) a.setXY(j * VW + c, (c % (GW + 1) - GW / 2) * restH(j), j * SEG);
+    a.needsUpdate = true;
+  }
   var skirt = new THREE.Mesh(skirtGeo, FABRICS[fabricName].mat);
   skirt.castShadow = true; skirt.receiveShadow = true; skirt.frustumCulled = false; skirt.renderOrder = 3; scene.add(skirt);
   function shell(k, order) { var m = new THREE.Mesh(skirtGeo, skirt.material); m.scale.set(k, 1, k); m.frustumCulled = false; m.visible = false; m.renderOrder = order; scene.add(m); return m; }
@@ -911,19 +1027,19 @@
   lining.castShadow = true;
 
   // ---------- petticoat: a lighter frill that peeks out under the hem ----------
-  var PR = 2, pettiGeo = new THREE.BufferGeometry();
+  var PR = 2, PW = M + 1, pettiGeo = new THREE.BufferGeometry();
   (function () {
     var idx = [];
-    for (var r = 0; r < PR - 1; r++) for (var i = 0; i < M; i++) { var a = r * VW + i, b = a + 1, c = a + VW, d = c + 1; idx.push(a, c, b, b, c, d); }
-    pettiGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(VW * PR * 3), 3));
-    pettiGeo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(VW * PR * 3), 3));
+    for (var r = 0; r < PR - 1; r++) for (var i = 0; i < M; i++) { var a = r * PW + i, b = a + 1, c = a + PW, d = c + 1; idx.push(a, c, b, b, c, d); }
+    pettiGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(PW * PR * 3), 3));
+    pettiGeo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(PW * PR * 3), 3));
     pettiGeo.setIndex(idx);
   })();
   var petti = new THREE.Mesh(pettiGeo, trimMat); petti.frustumCulled = false; petti.castShadow = true; scene.add(petti);
   function syncPetti() {
     var p = pettiGeo.attributes.position.array;
     for (var r = 0; r < PR; r++) for (var i = 0; i <= M; i++) {
-      var o = (r * VW + i) * 3, ii = i % M, j = Math.min(NR - 1, NR - PR + 1 + r), id = j * M + ii;
+      var o = (r * PW + i) * 3, ii = i % M, j = Math.min(NR - 1, NR - PR + 1 + r), id = j * M + ii;
       if (r < PR - 1) { p[o] = X[id] * 0.992; p[o + 1] = Y[id] + 0.004; p[o + 2] = Z[id] * 0.992; }
       else {
         var b = id - M, e = 1.9 * (0.95 + 0.2 * Math.sin(ii * 6.283 * 14 / M) + 0.12 * Math.sin(ii * 6.283 * 23 / M + 1));
@@ -937,15 +1053,15 @@
 
   function syncSkirt() {
     var p = skirtGeo.attributes.position.array;
-    for (var j = 0; j < NR; j++) for (var i = 0; i <= M; i++) {
-      var id = j * M + (i % M), o = (j * VW + i) * 3;
+    for (var j = 0; j < NR; j++) for (var c = 0; c < VW; c++) {
+      var id = j * M + thread[c], o = (j * VW + c) * 3;
       p[o] = X[id]; p[o + 1] = Y[id]; p[o + 2] = Z[id];
     }
     skirtGeo.attributes.position.needsUpdate = true;
     skirtGeo.computeVertexNormals();
     var n = skirtGeo.attributes.normal.array;
-    for (var j2 = 0; j2 < NR; j2++) {
-      var s = j2 * VW * 3, e = s + M * 3;
+    for (var j2 = 0; j2 < NR; j2++) for (var q = 0; q < GORES; q++) { // both sides of a seam share a normal, so the seam doesn't show as a crease of light
+      var s = (j2 * VW + seams[q][0]) * 3, e = (j2 * VW + seams[q][1]) * 3;
       var nx = n[s] + n[e], ny = n[s + 1] + n[e + 1], nz = n[s + 2] + n[e + 2], l = Math.hypot(nx, ny, nz) || 1;
       n[s] = n[e] = nx / l; n[s + 1] = n[e + 1] = ny / l; n[s + 2] = n[e + 2] = nz / l;
     }
@@ -1226,6 +1342,33 @@
   });
   setFabric(fabricName);
 
+  // Wooden printing blocks for the print. Each is drawn from above: the carved face, a sliver of the
+  // block's side showing below it, and the motif standing up from the face, inked in rose.
+  var BLOCK_FACES = {
+    plain: '<path class="grain" d="M8 12 Q18 10 30 13 M7 19 Q17 21 30 18 M8 26 Q20 24 30 27"/>',
+    stripes: '<path class="cut" d="M10 6 h4 v25 h-4 Z M18 6 h4 v25 h-4 Z M26 6 h3 v25 h-3 Z"/>',
+    dots: '<circle class="cut" cx="12" cy="12" r="2.6"/><circle class="cut" cx="25" cy="12" r="2.6"/><circle class="cut" cx="18.5" cy="19" r="2.6"/>' +
+      '<circle class="cut" cx="12" cy="26" r="2.6"/><circle class="cut" cx="25" cy="26" r="2.6"/>',
+    florals: '<g transform="translate(18 18)">' + [0, 72, 144, 216, 288].map(function (r) {
+      return '<ellipse class="cut" cx="0" cy="-6" rx="3.3" ry="5" transform="rotate(' + r + ')"/>'; }).join("") +
+      '<circle cx="0" cy="0" r="2.2" fill="#c9a77a"/></g>'
+  };
+  var printRow = document.getElementById("prints"), printEls = {};
+  function setPrint(name) {
+    usePrint(name);
+    Object.keys(printEls).forEach(function (k) { printEls[k].setAttribute("aria-pressed", k === name ? "true" : "false"); });
+  }
+  Object.keys(PRINTS).forEach(function (name) {
+    var b = document.createElement("button"), lb = document.createElement("span");
+    b.className = "block"; b.id = "r-" + name;
+    b.innerHTML = '<svg viewBox="0 0 40 40" aria-hidden="true"><path class="side" d="M4 5 L33 4 L36 9 L37 36 L8 37 L4 32 Z"/>' +
+      '<path class="face" d="M4 5 L33 4 L33 32 L4 32 Z"/>' + BLOCK_FACES[name] + '</svg>';
+    lb.textContent = PRINTS[name].label; b.appendChild(lb);
+    b.addEventListener("click", function () { setPrint(name); });
+    printRow.appendChild(b); printEls[name] = b;
+  });
+  setPrint(printName);
+
   // Paper pattern pieces for the neckline. Each is the bodice front drawn flat (waist at the bottom),
   // with the neckline as its top edge and a dashed sewing line just inside.
   var NECK_TOPS = {
@@ -1285,7 +1428,7 @@
   var skirtRow = document.getElementById("skirts"), skirtEls = {};
   function setSkirt(name, quiet) {
     skirtName = name; LEN = SKIRTS[name].len; SEG = LEN / (NR - 1);
-    measureHoops(SKIRTS[name]); cutSkirt();
+    measureHoops(SKIRTS[name]); cutSkirt(); markSkirtCloth();
     // Left alone, cloth that suddenly got longer or wider tends to land in crumpled flaps at the hem,
     // so give it a shake, like you would when trying a new skirt on, and it falls fresh over the new hoops.
     if (!quiet) shakeOut();

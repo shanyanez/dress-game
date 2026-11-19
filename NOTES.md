@@ -42,12 +42,23 @@ This file keeps track of what has been done on the dress game and what comes nex
   and clicking from A-line to tea length to ball gown in a live browser with no errors.
   Preview only, not live yet.
 
+- 2026-11-19: Fabric prints. A row of little carved wooden printing blocks sits under the fabric
+  samples (on phones they stand in a column at the top right): Plain, Stripes, Dots and Florals.
+  The print is stamped over whatever color the cloth is dyed, so it always takes on the dress's own
+  shade: stripes are a darker band with cream threads either side (ticking), dots are cream polka
+  dots, and florals are small cream flowers with dark hearts and leaves. It goes on the bodice,
+  skirt, straps and sleeves; the trim stays plain. The skirt is now laid out as 16 tall panels for
+  the print, like a real gown, so the print runs straight down each panel instead of twisting round
+  the skirt (stripes meet in soft chevrons at the seams). The plain dress looks the same as before.
+  Checked in test renders: dots and florals on the ball gown, stripes on the A-line from the side,
+  florals on velvet with puff sleeves, dots on a phone-sized screen, and clicking through the blocks,
+  skirts and cloths in a live browser with no errors. Preview only, not live yet.
+
 ## Next ideas
 
-1. Maybe more sleeve styles later (flutter sleeves, a halter strap)
-2. Maybe more skirts later (a mermaid shape, a high-low hem)
-3. Fabric prints (stripes, dots, florals)
-4. Decorations placed by clicking: bows, buttons, lace
-5. Save a dress and share it as a link (include the neckline, sleeves, skirt shape and the dyed shade)
-6. A "take a picture" button
-7. Maybe a gentler change between necklines (it swaps instantly right now)
+1. Decorations placed by clicking: bows, buttons, lace
+2. Save a dress and share it as a link (include the neckline, sleeves, skirt shape, print and the dyed shade)
+3. A "take a picture" button
+4. Maybe more prints later (gingham, a bigger rose print), or printing just the skirt or just the bodice
+5. Maybe more sleeve styles (flutter sleeves, a halter strap) and skirts (mermaid, high-low hem)
+6. Maybe a gentler change between necklines (it swaps instantly right now)
