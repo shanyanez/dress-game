@@ -112,6 +112,23 @@
   .block[aria-pressed="true"] { transform: translateY(-5px); }
   .block[aria-pressed="true"] span { background: var(--rose); color: var(--linen); }
 
+  /* notions: a ribbon bow to pick up and tie onto the dress, and a seam ripper to take the bows off again */
+  .notions { position: fixed; right: 22px; top: 116px; display: flex; gap: 12px; }
+  .notion { background: none; border: 0; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 0.62rem; color: var(--ink); filter: drop-shadow(2px 3px 0 rgba(18,12,8,0.5)); transition: transform .15s ease; }
+  .notion:nth-child(odd) { transform: rotate(2deg); }
+  .notion:nth-child(even) { transform: rotate(-3deg); }
+  .notion:hover { transform: translateY(-3px); }
+  .notion svg { display: block; width: 38px; height: 38px; }
+  .notion .ribbon { fill: #e6dcc8; stroke: var(--ink); stroke-width: 1.2; stroke-linejoin: round; }
+  .notion .fold { fill: none; stroke: var(--ink-soft); stroke-width: 0.8; }
+  .notion .handle { fill: var(--wood); stroke: var(--ink); stroke-width: 1.2; stroke-linejoin: round; }
+  .notion .steel { fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; }
+  .notion .bead { fill: var(--rose); stroke: var(--ink); stroke-width: 0.8; }
+  .notion span { background: var(--linen); padding: 3px 5px 1px; }
+  .notion[aria-pressed="true"] { transform: translateY(-5px) scale(1.08); }
+  .notion[aria-pressed="true"] span { background: var(--rose); color: var(--linen); }
+
   /* which part gets the color: small tags above the spools */
   .parts { position: fixed; bottom: 106px; left: 50%; transform: translateX(-50%); display: flex; gap: 9px; }
   .part { background: var(--linen); color: var(--ink); border: 0; padding: 4px 9px 2px; font-size: 0.7rem; letter-spacing: 0.04em; cursor: pointer; box-shadow: 1px 2px 0 rgba(18,12,8,0.5); }
@@ -159,17 +176,21 @@
     .block { font-size: 0.54rem; }
     .block svg { width: 28px; height: 28px; }
     .block span { padding: 2px 4px 0; }
+    .notions { right: 8px; top: 302px; flex-direction: column; gap: 8px; }
+    .notion { font-size: 0.54rem; }
+    .notion svg { width: 30px; height: 30px; }
+    .notion span { padding: 2px 4px 0; }
     .rack { left: 12px; right: 12px; transform: none; overflow-x: auto; justify-content: flex-start; max-width: none; padding: 14px 12px 0; }
   }
 </style>
 </head>
 <body>
-<canvas id="stage" aria-label="A ball gown on a dress form in a seamstress's attic. Drag to look around, tap the dress to throw a color at it."></canvas>
+<canvas id="stage" aria-label="A ball gown on a dress form in a seamstress's attic. Drag to look around, tap the dress to throw a color at it or tie on a bow."></canvas>
 <div id="fail">This page needs 3D graphics (WebGL), and this browser has it turned off.</div>
 
 <div class="label">
   <h1>The Dress That Can't Decide</h1>
-  <p>Drag to look around. Tap the dress, or pick a spool, to throw a color; the plain spool at the end can be dyed any shade. The tags above the spools choose which part it lands on, the paper patterns on the left change the neckline, sleeves and skirt, and the carved blocks print the cloth.</p>
+  <p>Drag to look around. Tap the dress, or pick a spool, to throw a color; the plain spool at the end can be dyed any shade. The tags above the spools choose which part it lands on, the paper patterns on the left change the neckline, sleeves and skirt, the carved blocks print the cloth, and with the bow picked up a tap ties a bow on the dress.</p>
 </div>
 
 <div class="actions" role="group" aria-label="Actions">
@@ -186,6 +207,21 @@
 </div>
 <div class="cloths" id="cloths" role="group" aria-label="Cloth"></div>
 <div class="prints" id="prints" role="group" aria-label="Print"></div>
+<div class="notions" role="group" aria-label="Notions">
+  <button class="notion" id="bow" aria-pressed="false" title="Pick up the bow, then tap the dress to tie one on">
+    <svg viewBox="0 0 40 40" aria-hidden="true">
+      <path class="ribbon" d="M19 19 L12 33 L15.5 31 L17 35 L21.5 20 Z M21 19 L28 33 L24.5 31 L23 35 L18.5 20 Z"/>
+      <path class="ribbon" d="M20 17 C14 9 4 8 4 14.5 C4 21 14 22 20 17 Z M20 17 C26 9 36 8 36 14.5 C36 21 26 22 20 17 Z"/>
+      <path class="fold" d="M18 16.5 C13 13.5 8 13 6.5 14.5 M22 16.5 C27 13.5 32 13 33.5 14.5"/>
+      <ellipse class="ribbon" cx="20" cy="17.5" rx="3" ry="3.6"/>
+    </svg><span>Bow</span></button>
+  <button class="notion" id="unpick" title="Unpick every bow">
+    <svg viewBox="0 0 40 40" aria-hidden="true">
+      <path class="steel" d="M22 18 L30 10 L34 4 M30 10 L33.5 9"/>
+      <circle class="bead" cx="34" cy="8.6" r="2"/>
+      <path class="handle" d="M7 30 L19 18 L23.5 22.5 L11.5 34.5 Q6 36.5 7 30 Z"/>
+    </svg><span>Unpick</span></button>
+</div>
 <div class="parts" id="parts" role="group" aria-label="Part of the dress to color">
   <button class="part" id="p-all" aria-pressed="true">Whole dress</button>
   <button class="part" id="p-bodice" aria-pressed="false">Bodice</button>
@@ -1067,6 +1103,70 @@
     }
   }
 
+  // ---------- bows tied onto the dress ----------
+  // One bow, built flat around its knot: x is sideways, y is up and z points out of the cloth.
+  // Each loop is a ribbon that runs out from the knot on the front, folds over at the far end and comes
+  // back behind itself, so it's pinched at the knot and widest at the fold, like a real tied bow.
+  // The two tails hang down and out, with a notch cut in their ends.
+  var bowMat = new THREE.MeshPhysicalMaterial({ color: sc(0xe6dcc8), roughness: 0.32, sheen: 0.6, sheenColor: white, side: THREE.DoubleSide, envMapIntensity: 1.0 });
+  var bowGeo = new THREE.BufferGeometry();
+  (function () {
+    var pos = [], idx = [], N = 36;
+    [-1, 1].forEach(function (sgn) { // the loops
+      var base = pos.length / 3;
+      for (var i = 0; i <= N; i++) {
+        var t = i / N * Math.PI * 2, out = (1 - Math.cos(t)) / 2;
+        var x = sgn * 0.05 * out, y = 0.014 * out - 0.003 * Math.sin(t), z = 0.011 + 0.007 * Math.sin(t);
+        var hw = 0.005 + 0.012 * Math.sin(t / 2); // half the ribbon's width
+        pos.push(x, y - hw, z, x, y + hw, z);
+      }
+      for (var k = 0; k < N; k++) { var q = base + k * 2; idx.push(q, q + 2, q + 1, q + 1, q + 2, q + 3); }
+    });
+    [-1, 1].forEach(function (sgn) { // the tails: three points across each, so the middle one can be pulled up into a notch
+      var base = pos.length / 3, T = 10, dx = sgn * 0.024, dy = -0.052, l = Math.hypot(dx, dy), px = -dy / l, py = dx / l;
+      for (var i = 0; i <= T; i++) {
+        var s = i / T, hw = 0.006 + 0.003 * s, cx = sgn * 0.004 + dx * s, cy = -0.003 + dy * s, z = 0.01 - 0.004 * s + 0.003 * Math.sin(s * Math.PI);
+        var notch = i === T ? 0.011 : 0;
+        pos.push(cx - px * hw, cy - py * hw, z, cx - dx / l * notch, cy - dy / l * notch, z + 0.001, cx + px * hw, cy + py * hw, z);
+      }
+      for (var k = 0; k < T; k++) { var q = base + k * 3; idx.push(q, q + 3, q + 1, q + 1, q + 3, q + 4, q + 1, q + 4, q + 2, q + 2, q + 4, q + 5); }
+    });
+    bowGeo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    bowGeo.setIndex(idx); bowGeo.computeVertexNormals();
+  })();
+  var knotGeo = new THREE.SphereGeometry(1, 16, 10); knotGeo.scale(0.008, 0.01, 0.006); knotGeo.translate(0, 0.001, 0.016);
+  var bows = [], MAX_BOWS = 30, bowing = false;
+  var bA = new THREE.Vector3(), bB = new THREE.Vector3(), bC = new THREE.Vector3(), bN = new THREE.Vector3(), bUp = new THREE.Vector3(), bSide = new THREE.Vector3();
+  var bBasis = new THREE.Matrix4(), bTwist = new THREE.Quaternion(), zAxis = new THREE.Vector3(0, 0, 1);
+  // A bow remembers the little triangle of cloth it's tied to, and where in that triangle, rather than a
+  // fixed spot in the room. Every frame it finds that spot again, so it rides along when the skirt
+  // swings or the bodice is recut for a new neckline.
+  function tieBow(hit, dir) {
+    var obj = hit.object, pos = obj.geometry.attributes.position, f = hit.face;
+    bA.fromBufferAttribute(pos, f.a); bB.fromBufferAttribute(pos, f.b); bC.fromBufferAttribute(pos, f.c);
+    var w = THREE.Triangle.getBarycoord(obj.worldToLocal(hit.point.clone()), bA, bB, bC, new THREE.Vector3());
+    bN.subVectors(bB, bA).cross(bC.sub(bA)).transformDirection(obj.matrixWorld);
+    var g = new THREE.Group(), body = new THREE.Mesh(bowGeo, bowMat), knot = new THREE.Mesh(knotGeo, bowMat);
+    body.castShadow = knot.castShadow = true; g.add(body); g.add(knot);
+    g.scale.setScalar(obj === skirt ? 1.4 : 1.1); // a little bigger on the wide skirt, so it doesn't look lost
+    obj.parent.add(g); // the skirt lives in the room, the bodice on the turning form; the bow goes with whichever it's on
+    // The cloth is two-sided, so note which way faces out (towards whoever tied it) and keep the bow on that side.
+    var b = { g: g, pos: pos, f: [f.a, f.b, f.c], w: w, side: bN.dot(dir) > 0 ? -1 : 1, twist: rnd(-0.25, 0.25) };
+    bows.push(b); placeBow(b);
+    if (bows.length > MAX_BOWS) { var old = bows.shift(); old.g.parent.remove(old.g); }
+  }
+  function placeBow(b) {
+    bA.fromBufferAttribute(b.pos, b.f[0]); bB.fromBufferAttribute(b.pos, b.f[1]); bC.fromBufferAttribute(b.pos, b.f[2]);
+    b.g.position.set(0, 0, 0).addScaledVector(bA, b.w.x).addScaledVector(bB, b.w.y).addScaledVector(bC, b.w.z);
+    bN.subVectors(bB, bA).cross(bC.sub(bA)).normalize().multiplyScalar(b.side);
+    bUp.set(0, 1, 0).addScaledVector(bN, -bN.y); // "up" along the cloth, so the tails always hang down
+    if (bUp.lengthSq() < 1e-6) bUp.set(0, 0, 1);
+    bUp.normalize(); bSide.crossVectors(bUp, bN);
+    b.g.quaternion.setFromRotationMatrix(bBasis.makeBasis(bSide, bUp, bN)).multiply(bTwist.setFromAxisAngle(zAxis, b.twist));
+  }
+  function updateBows() { for (var i = 0; i < bows.length; i++) placeBow(bows[i]); }
+  function unpickBows() { bows.forEach(function (b) { b.g.parent.remove(b.g); }); bows = []; }
+
   // ---------- paints: solid colors and blends ----------
   function hslToRgb(h, s, l) {
     var a = s * Math.min(l, 1 - l);
@@ -1270,8 +1370,13 @@
     lastX = e.clientX; lastY = e.clientY; lastT = now;
   });
   function endDrag() { down = null; orbiting = false; canvas.classList.remove("dragging"); }
+  function bowAt(e) { // with the bow picked up, a tap ties one on wherever it lands on the dress
+    setRay(e);
+    var hits = ray.intersectObjects([skirt, bodice], false);
+    if (hits.length) tieBow(hits[0], ray.ray.direction);
+  }
   canvas.addEventListener("pointerup", function (e) {
-    if (down && !down.moved && performance.now() - down.t < 500) castAt(e);
+    if (down && !down.moved && performance.now() - down.t < 500) { if (bowing) bowAt(e); else castAt(e); }
     endDrag();
   });
   canvas.addEventListener("pointercancel", endDrag);
@@ -1467,6 +1572,11 @@
       partEls.forEach(function (o) { o.setAttribute("aria-pressed", o === b ? "true" : "false"); });
     });
   });
+  var bowBtn = document.getElementById("bow");
+  bowBtn.addEventListener("click", function () { // pick the bow up, or put it back down to throw colors again
+    bowing = !bowing; bowBtn.setAttribute("aria-pressed", bowing ? "true" : "false");
+  });
+  document.getElementById("unpick").addEventListener("click", unpickBows);
   var argueBtn = document.getElementById("argue"), argue = !calm;
   argueBtn.setAttribute("aria-pressed", argue ? "true" : "false");
   argueBtn.addEventListener("click", function () {
@@ -1541,12 +1651,20 @@
     dress.rotation.y = theta;
     var pulse = calm ? 1 : 0.8 + 0.3 * Math.sin(now / 1000 * 2.3);
     for (var g = 0; g < glitterMats.length; g++) glitterMats[g].emissiveIntensity = glitterMats[g].userData.sparkle * pulse;
-    syncSkirt(); updatePaint(dt); syncPetti(); updateSparks(dt, now / 1000);
+    syncSkirt(); updateBows(); updatePaint(dt); syncPetti(); updateSparks(dt, now / 1000);
     if (finalPass) finalPass.uniforms.time.value = now / 1000;
     if (composer) composer.render(); else renderer.render(scene, camera);
     requestAnimationFrame(frame);
   }
   syncSkirt(); updatePaint(0.016); syncPetti();
+  if (/[?&]bows=1/.test(query)) { // test option: a bow at the front of the waist and a row across the skirt, tied straight on from the front
+    dress.updateMatrixWorld(true);
+    [[0, WAIST + 0.03], [-0.42, 0.62], [-0.2, 0.55], [0.2, 0.55], [0.42, 0.62]].forEach(function (p) {
+      ray.set(new THREE.Vector3(p[0], p[1], 4), new THREE.Vector3(0, 0, -1));
+      var hits = ray.intersectObjects([skirt, bodice], false);
+      if (hits.length) tieBow(hits[0], ray.ray.direction);
+    });
+  }
   requestAnimationFrame(frame);
 })();
 </script>

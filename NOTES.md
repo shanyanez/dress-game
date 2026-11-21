@@ -54,10 +54,20 @@ This file keeps track of what has been done on the dress game and what comes nex
   florals on velvet with puff sleeves, dots on a phone-sized screen, and clicking through the blocks,
   skirts and cloths in a live browser with no errors. Preview only, not live yet.
 
+- 2026-11-21: Bows, the first decoration. Two new notions sit under the sewing buttons (on phones,
+  under the printing blocks): a ribbon Bow and a seam ripper called Unpick. Pick up the bow and a tap
+  on the dress ties a bow there instead of throwing color; tap the bow again to put it down. Unpick
+  takes all the bows off. Bows are cream satin, the same ribbon as the waist sash, so they go with
+  any color. Each bow is tied to its spot on the cloth, so it swings with the skirt when it twirls and
+  stays put when the neckline or skirt shape changes. Checked in test renders (a row of bows on satin
+  and velvet from the front, tulle A-line from the side, a phone-sized screen) and by clicking in a
+  live browser (tie, twirl, unpick) with no errors. Preview only, not live yet.
+
 ## Next ideas
 
-1. Decorations placed by clicking: bows, buttons, lace
-2. Save a dress and share it as a link (include the neckline, sleeves, skirt shape, print and the dyed shade)
+1. More decorations with the bow: little cloth-covered buttons, and a strip of lace trim
+   (maybe let bows take the chosen thread color too)
+2. Save a dress and share it as a link (include the neckline, sleeves, skirt shape, print, the dyed shade and where the bows are)
 3. A "take a picture" button
 4. Maybe more prints later (gingham, a bigger rose print), or printing just the skirt or just the bodice
 5. Maybe more sleeve styles (flutter sleeves, a halter strap) and skirts (mermaid, high-low hem)
