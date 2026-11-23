@@ -63,11 +63,19 @@ This file keeps track of what has been done on the dress game and what comes nex
   and velvet from the front, tulle A-line from the side, a phone-sized screen) and by clicking in a
   live browser (tie, twirl, unpick) with no errors. Preview only, not live yet.
 
+- 2026-11-23: Cloth-covered buttons. A little card of buttons now sits between the Bow and the seam
+  ripper. Pick it up and each tap on the dress sews on a small domed button (tap the card again to put
+  it down; picking up the bow puts the buttons down and the other way round). The buttons are covered
+  in the trim's cloth, so they always match the ruffle and change color whenever the trim is redyed.
+  Like the bows, they ride along with the cloth when the skirt moves, and Unpick now takes off bows and
+  buttons together. Checked in test renders (a row down the bodice front in satin and velvet up close,
+  buttons and bows together from the side, a phone-sized screen) and by clicking in a live browser
+  (sew buttons, switch to the bow, tie one) with no errors. Preview only, not live yet.
+
 ## Next ideas
 
-1. More decorations with the bow: little cloth-covered buttons, and a strip of lace trim
-   (maybe let bows take the chosen thread color too)
-2. Save a dress and share it as a link (include the neckline, sleeves, skirt shape, print, the dyed shade and where the bows are)
+1. A strip of lace trim to finish the decorations (maybe let bows take the chosen thread color too)
+2. Save a dress and share it as a link (include the neckline, sleeves, skirt shape, print, the dyed shade and where the bows and buttons are)
 3. A "take a picture" button
 4. Maybe more prints later (gingham, a bigger rose print), or printing just the skirt or just the bodice
 5. Maybe more sleeve styles (flutter sleeves, a halter strap) and skirts (mermaid, high-low hem)
