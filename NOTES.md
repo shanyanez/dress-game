@@ -82,6 +82,29 @@ This file keeps track of what has been done on the dress game and what comes nex
   tulle A-line on a phone-sized screen) and by clicking in a live browser (pick up the lace, lay two bands,
   twirl, unpick) with no errors. Preview only, not live yet.
 
+- 2026-11-25 (later, Nez asked for it): Real-feeling cloth, twirling by hand, and a sparkle trail.
+  Nez shared a screen recording of a dress whose cloth looked real and asked for ours to feel like
+  actual fabric instead of plastic. What the recording shows: layers of sheer cloth you see through to
+  each other, long soft folds that wind into spirals as it spins, a hem that trails behind and flares,
+  no hard white shine anywhere, and fine glitter. Ours looked like plastic mostly because of white
+  shiny highlights and a clear-coat layer. Changes, all in the preview:
+  - Every cloth now has a tiny woven surface (long threads on satin, uneven slubs on silk, a crinkle
+    on chiffon, a pile on velvet), so light breaks up across it like real thread.
+  - The soft glow on the cloth takes the dye's own color instead of white, and highlights are half
+    tinted too. Satin glows in long soft bands along the folds; silk has a liquid shimmer; velvet is
+    deep and dark face-on and glows a lighter shade of itself at the edges, with no shine.
+  - Chiffon and tulle are more see-through face-on and turn thick and milky where they curve away,
+    like real sheer layers. The clear-coat and the glitter on satin, silk and velvet are gone (tulle
+    keeps its glitter, chiffon a hint).
+  - Each cloth moves more like itself: chiffon floats and settles slowly, silk pours and catches the
+    breeze, velvet and sequins swing heavily with their own weight.
+  - Grab the dress and drag sideways to spin it by hand (mouse or finger); let go and it keeps turning
+    and slows down. Dragging beside the dress still looks around the room. The Twirl button still works.
+  - A trail of tiny soft twinkles (ivory, blush and pale blue) follows the mouse, or a finger while dragging.
+  Checked in test renders side by side with the old version for satin, silk, chiffon, tulle, velvet and
+  sequins, and in a live browser (hover trail, grab-and-fling spin) with no errors. Tulle is better but
+  still flatter than the recording; a next step could be giving it real separate layers with their own folds.
+
 ## Next ideas
 
 1. Save a dress and share it as a link (include the neckline, sleeves, skirt shape, print, the dyed shade, the lace bands and where the bows and buttons are)

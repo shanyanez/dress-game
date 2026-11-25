@@ -190,12 +190,12 @@
 </style>
 </head>
 <body>
-<canvas id="stage" aria-label="A ball gown on a dress form in a seamstress's attic. Drag to look around, tap the dress to throw a color at it or sew on a bow, a button or a band of lace."></canvas>
+<canvas id="stage" aria-label="A ball gown on a dress form in a seamstress's attic. Drag the dress to twirl it or beside it to look around, tap the dress to throw a color at it or sew on a bow, a button or a band of lace."></canvas>
 <div id="fail">This page needs 3D graphics (WebGL), and this browser has it turned off.</div>
 
 <div class="label">
   <h1>The Dress That Can't Decide</h1>
-  <p>Drag to look around. Tap the dress, or pick a spool, to throw a color; the plain spool at the end can be dyed any shade. The tags above the spools choose which part it lands on, the paper patterns on the left change the neckline, sleeves and skirt, the carved blocks print the cloth, and with the bow, buttons or lace picked up a tap sews them onto the dress.</p>
+  <p>Drag the dress to twirl it, or drag beside it to look around. Tap the dress, or pick a spool, to throw a color; the plain spool at the end can be dyed any shade. The tags above the spools choose which part it lands on, the paper patterns on the left change the neckline, sleeves and skirt, the carved blocks print the cloth, and with the bow, buttons or lace picked up a tap sews them onto the dress.</p>
 </div>
 
 <div class="actions" role="group" aria-label="Actions">
@@ -605,6 +605,32 @@
     var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(40, 18); t.anisotropy = MAXA;
     return t;
   }
+  // Real cloth is never perfectly smooth: it's woven from threads, and that's what keeps it from
+  // looking like plastic. This draws a tiny bumpy surface and turns it into a normal map.
+  // "threads" are rows of weft (satin's long floats, silk's uneven slubs), "crepe" is a fine
+  // crinkle all over (chiffon's twist, velvet's pile). One tile covers a few centimeters of cloth.
+  function clothGrain(threads, slub, crepe) {
+    var N = 256, h = new Float32Array(N * N), R = rng(11), rows = [];
+    for (var r = 0; r < N / 4; r++) rows.push({ p: R() * 6.283, a: 0.6 + R() * 0.8, f1: 1 + Math.floor(R() * 3), f2: 3 + Math.floor(R() * 5), q: R() * 6.283 });
+    var noise = new Float32Array(N * N); for (var n = 0; n < N * N; n++) noise[n] = R() - 0.5;
+    for (var y = 0; y < N; y++) for (var x = 0; x < N; x++) {
+      var row = rows[y >> 2], u = x / N * 6.283;
+      var thick = 1 + slub * (Math.sin(u * row.f1 + row.p) * 0.6 + Math.sin(u * row.f2 + row.q) * 0.4); // slubs: a thread that thickens and thins
+      var v = threads * row.a * thick * Math.sin((y % 4) / 4 * 3.1416);
+      var c = 0; for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) c += noise[((y + dy + N) % N) * N + (x + dx + N) % N]; // a soft crinkle
+      h[y * N + x] = v + crepe * c / 3;
+    }
+    var cv = document.createElement("canvas"); cv.width = cv.height = N;
+    var g = cv.getContext("2d"), img = g.createImageData(N, N);
+    for (var y2 = 0; y2 < N; y2++) for (var x2 = 0; x2 < N; x2++) {
+      var nx = h[y2 * N + (x2 + N - 1) % N] - h[y2 * N + (x2 + 1) % N], ny = h[((y2 + 1) % N) * N + x2] - h[((y2 + N - 1) % N) * N + x2];
+      var l = Math.hypot(nx, ny, 1), o = (y2 * N + x2) * 4;
+      img.data[o] = 128 + 127 * nx / l; img.data[o + 1] = 128 + 127 * ny / l; img.data[o + 2] = 255 / l; img.data[o + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    var t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(60, 16); t.anisotropy = MAXA;
+    return t;
+  }
   function pleatNormals() {
     var c = document.createElement("canvas"); c.width = 64; c.height = 4;
     var g = c.getContext("2d");
@@ -698,32 +724,80 @@
       ].join("\n"));
   }
 
+  // Two more things real cloth does that plain three.js shading doesn't:
+  // - The soft glow on fabric (sheen) comes from light caught in colored fibers, so it's the dye's
+  //   own color, not a white shine. Velvet glows a lighter shade of itself at the edges; satin glows
+  //   rose where it's rose. A white shine is what makes cloth look like plastic. "tint" sets how much,
+  //   and the brighter highlights on satin and silk take on half of the dye's color for the same reason.
+  // - Sheer cloth (chiffon, tulle) looks see-through where it faces you but thick and milky where it
+  //   turns away, because you're looking through more of it edge-on. "rim" sets how much it thickens.
+  function addLook(shader, look) {
+    shader.uniforms.sheenTint = look.tint; shader.uniforms.rimOpacity = look.rim;
+    shader.fragmentShader = "uniform float sheenTint, rimOpacity;\n" + shader.fragmentShader
+      .replace("#include <normal_fragment_maps>", [
+        "#include <normal_fragment_maps>",
+        "  float facing = abs(dot(normalize(normal), normalize(vViewPosition)));",
+        "  diffuseColor.a = mix(diffuseColor.a, 1.0, rimOpacity * pow(1.0 - facing, 1.5));"
+      ].join("\n"))
+      .replace("#include <lights_physical_fragment>", [
+        "#include <lights_physical_fragment>",
+        "  #ifdef USE_SHEEN",
+        "    vec3 dye = diffuseColor.rgb / max(max(diffuseColor.r, diffuseColor.g), max(diffuseColor.b, 0.02));",
+        "    material.sheenColor *= mix(vec3(1.0), dye, sheenTint);",
+        "    material.specularColor *= mix(vec3(1.0), dye, sheenTint * 0.6);",
+        "  #endif"
+      ].join("\n"));
+  }
+
   var glitter = glitterMap(), glitterMats = [];
-  function fabricMat(o, sparkle) {
+  function fabricMat(o, sparkle, look) {
     o.vertexColors = true; o.side = THREE.DoubleSide;
     if (sparkle) { o.emissive = white; o.emissiveMap = glitter; o.emissiveIntensity = sparkle; }
-    var m = new THREE.MeshPhysicalMaterial(o);
-    m.onBeforeCompile = addPrint;
+    var m = new THREE.MeshPhysicalMaterial(o), u = { tint: { value: (look && look.tint) || 0 }, rim: { value: (look && look.rim) || 0 } };
+    m.onBeforeCompile = function (shader) { addPrint(shader); addLook(shader, u); };
     if (sparkle) { m.userData.sparkle = sparkle; glitterMats.push(m); }
     return m;
   }
+  // Each cloth is set up to behave like the real thing. The look numbers say how shiny and how
+  // see-through it is; full, bend, drag and wind say how it moves:
+  // full: how far the petticoat holds it out; bend: how stiff it is (tulle stands up, silk pours);
+  // drag: how much the air slows it (chiffon floats down, velvet and sequins swing with their weight);
+  // wind: how much a breeze moves it.
   var FABRICS = {
+    // Satin: a smooth weave with long floating threads, so it has a deep, soft glow along each fold
+    // rather than a hard white glint. Medium weight; it falls in big rounded folds.
     satin: { label: "Satin", sw: "linear-gradient(120deg,#b9717f,#f1d3d8 42%,#a85e6d 58%,#dfa9b2)", full: 0.95, bend: 0.22, drag: 1.0, wind: 0.6,
-      mat: fabricMat({ roughness: 0.33, sheen: 0.5, sheenRoughness: 0.25, sheenColor: white, clearcoat: 0.1, clearcoatRoughness: 0.5, envMapIntensity: 0.65 }, 0.25) },
-    silk: { label: "Silk", sw: "linear-gradient(120deg,#f0c2d6,#cfe2f3 38%,#f5edc6 62%,#d7c5ee)", full: 0.88, bend: 0.08, drag: 1.7, wind: 1.1,
-      mat: fabricMat({ roughness: 0.28, sheen: 0.6, sheenRoughness: 0.3, sheenColor: white, iridescence: 1, iridescenceIOR: 1.6, iridescenceThicknessRange: [180, 620], envMapIntensity: 1.2 }, 0.5) },
-    chiffon: { label: "Chiffon", sw: "radial-gradient(circle at 40% 35%,rgba(255,255,255,.75),rgba(196,130,146,.55) 70%)", full: 0.66, bend: 0.03, drag: 3.2, wind: 1.7,
-      mat: fabricMat({ roughness: 0.55, sheen: 0.4, sheenRoughness: 0.5, sheenColor: white, transparent: true, opacity: 0.74, envMapIntensity: 0.8 }, 0.5) },
-    tulle: { label: "Tulle", sw: "repeating-linear-gradient(45deg,rgba(47,36,28,.35) 0 1px,transparent 1px 5px),repeating-linear-gradient(-45deg,rgba(47,36,28,.35) 0 1px,transparent 1px 5px),#e3b9c3", full: 1.05, bend: 0.65, drag: 2.5, wind: 0.6,
-      mat: fabricMat({ roughness: 0.85, sheen: 0.6, sheenRoughness: 0.6, sheenColor: white, transparent: true, opacity: 0.58, envMapIntensity: 0.5 }, 0.8) },
-    velvet: { label: "Velvet", sw: "radial-gradient(circle at 35% 30%,#a9596c,#662a3b)", full: 0.88, bend: 0.5, drag: 1.3, wind: 0.25,
-      mat: fabricMat({ color: new THREE.Color(0.36, 0.36, 0.36), roughness: 0.96, sheen: 1, sheenRoughness: 0.45, sheenColor: new THREE.Color(0.34, 0.27, 0.3), envMapIntensity: 0.15 }, 0.4) },
+      mat: fabricMat({ roughness: 0.3, specularIntensity: 0.9, sheen: 1, sheenRoughness: 0.3, sheenColor: white, envMapIntensity: 0.6,
+        normalMap: clothGrain(0.9, 0.1, 0.05), normalScale: new THREE.Vector2(0.25, 0.25) }, 0, { tint: 0.75 }) },
+    // Silk: lighter and more fluid than satin, with a liquid shimmer that shifts a little in color
+    // as it moves, and faint slubs in the thread. It pours rather than folds, and catches the air.
+    silk: { label: "Silk", sw: "linear-gradient(120deg,#f0c2d6,#cfe2f3 38%,#f5edc6 62%,#d7c5ee)", full: 0.86, bend: 0.05, drag: 1.5, wind: 1.3,
+      mat: fabricMat({ roughness: 0.3, specularIntensity: 0.7, sheen: 1, sheenRoughness: 0.3, sheenColor: white, iridescence: 0.35, iridescenceIOR: 1.5, iridescenceThicknessRange: [250, 500], envMapIntensity: 0.6,
+        normalMap: clothGrain(0.6, 0.8, 0.08), normalScale: new THREE.Vector2(0.3, 0.3) }, 0, { tint: 0.6 }) },
+    // Chiffon: a fine, crinkly, matte sheer. See-through face on, milky where it turns away, and so
+    // light that the air holds it up: it floats and settles slowly.
+    chiffon: { label: "Chiffon", sw: "radial-gradient(circle at 40% 35%,rgba(255,255,255,.75),rgba(196,130,146,.55) 70%)", full: 0.66, bend: 0.02, drag: 3.6, wind: 1.9,
+      mat: fabricMat({ roughness: 0.78, specularIntensity: 0.2, sheen: 0.8, sheenRoughness: 0.55, sheenColor: white, transparent: true, opacity: 0.36, envMapIntensity: 0.5,
+        normalMap: clothGrain(0, 0, 0.9), normalScale: new THREE.Vector2(0.35, 0.35) }, 0.15, { tint: 0.7, rim: 0.85 }) },
+    // Tulle: a stiff net, so the skirt stands out in layers that you see through to each other.
+    // Matte, with a little glitter caught in it, like a dressed-up petticoat.
+    tulle: { label: "Tulle", sw: "repeating-linear-gradient(45deg,rgba(47,36,28,.35) 0 1px,transparent 1px 5px),repeating-linear-gradient(-45deg,rgba(47,36,28,.35) 0 1px,transparent 1px 5px),#e3b9c3", full: 1.05, bend: 0.65, drag: 2.4, wind: 0.6,
+      mat: fabricMat({ roughness: 0.9, specularIntensity: 0.2, sheen: 0.7, sheenRoughness: 0.6, sheenColor: white, transparent: true, opacity: 0.34, envMapIntensity: 0.35 }, 0.7, { tint: 0.7, rim: 0.85 }) },
+    // Velvet: a short pile of standing fibers. Face on you look down into the pile and it's deep and
+    // dark; where it turns away the fiber tips catch the light and it glows a lighter shade of itself.
+    // No shine at all. Heavy, so it swings with its own weight and the breeze barely moves it.
+    velvet: { label: "Velvet", sw: "radial-gradient(circle at 35% 30%,#a9596c,#662a3b)", full: 0.88, bend: 0.5, drag: 0.9, wind: 0.2,
+      mat: fabricMat({ color: new THREE.Color(0.32, 0.32, 0.32), roughness: 1, specularIntensity: 0.08, sheen: 1, sheenRoughness: 0.4, sheenColor: new THREE.Color(0.95, 0.9, 0.9), envMapIntensity: 0.1,
+        normalMap: clothGrain(0, 0, 1), normalScale: new THREE.Vector2(0.2, 0.2) }, 0, { tint: 0.9 }) },
     lace: { label: "Lace", sw: "radial-gradient(circle,#fff 0 2px,transparent 2.5px) 0 0/9px 9px,radial-gradient(circle,#fff 0 1px,transparent 1.5px) 4.5px 4.5px/9px 9px,#c78c9a", full: 0.92, bend: 0.3, drag: 2.0, wind: 0.6,
-      mat: fabricMat({ color: new THREE.Color(1.5, 1.5, 1.5), roughness: 0.8, sheen: 0.5, sheenRoughness: 0.6, sheenColor: white, alphaMap: laceAlpha(), transparent: true, alphaTest: 0.06, envMapIntensity: 0.5 }, 0) },
-    sequin: { label: "Sequins", sw: "radial-gradient(circle,#ffe9ee 0 1.6px,transparent 2.2px) 0 0/6px 6px,linear-gradient(135deg,#b46a79,#e7b4bd)", full: 0.8, bend: 0.12, drag: 0.7, wind: 0.2,
+      mat: fabricMat({ color: new THREE.Color(1.5, 1.5, 1.5), roughness: 0.8, specularIntensity: 0.3, sheen: 0.5, sheenRoughness: 0.6, sheenColor: white, alphaMap: laceAlpha(), transparent: true, alphaTest: 0.06, envMapIntensity: 0.5 }, 0, { tint: 0.6 }) },
+    // Sequins: little metal mirrors sewn on cloth, so they're the one cloth that really is shiny.
+    // Heavy, so they swing out and keep going.
+    sequin: { label: "Sequins", sw: "radial-gradient(circle,#ffe9ee 0 1.6px,transparent 2.2px) 0 0/6px 6px,linear-gradient(135deg,#b46a79,#e7b4bd)", full: 0.8, bend: 0.12, drag: 0.6, wind: 0.15,
       mat: fabricMat({ roughness: 0.27, metalness: 0.85, normalMap: sequinNormals(), envMapIntensity: 1.9 }, 0) },
+    // Pleats: a crisp pressed cloth, springy, with a soft glow on each fold.
     pleats: { label: "Pleats", sw: "repeating-linear-gradient(90deg,#b46a79 0 2px,#e7b4bd 2px 5px)", full: 0.95, bend: 0.42, drag: 1.2, wind: 0.5,
-      mat: fabricMat({ roughness: 0.5, sheen: 0.4, sheenRoughness: 0.4, sheenColor: white, normalMap: pleatNormals(), normalScale: new THREE.Vector2(1.5, 0), envMapIntensity: 0.9 }, 0) }
+      mat: fabricMat({ roughness: 0.55, specularIntensity: 0.4, sheen: 0.7, sheenRoughness: 0.45, sheenColor: white, normalMap: pleatNormals(), normalScale: new THREE.Vector2(1.5, 0), envMapIntensity: 0.6 }, 0, { tint: 0.6 }) }
   };
   var SHEER = { chiffon: 1, tulle: 1, lace: 1 };
   var fabricName = "satin", P = { full: 0.95, bend: 0.22, drag: 1.0, wind: 0.6 };
@@ -1462,8 +1536,40 @@
     cast(p.x, p.y, p.z, pickPaint(), false);
     lastCast = performance.now();
   }
+  // A trail of tiny twinkles follows the mouse or finger, like dust off a pinch of glitter.
+  // They're dropped in the air at about the dress's depth, so they float past it rather than on the glass.
+  var trailTints = [[255, 236, 200], [250, 226, 226], [226, 232, 250]], trailGap = 0;
+  function trail(e, moved) {
+    if (calm) return;
+    trailGap += moved;
+    if (trailGap < 10) return;
+    setRay(e);
+    for (var n = Math.min(3, Math.floor(trailGap / 10)); n > 0; n--) {
+      var i = tNext; tNext = (tNext + 1) % TN;
+      ray.ray.at(dist * rnd(0.75, 0.85), tmpV).toArray(twinkles.pos, i * 3);
+      tVel[i * 3] = rnd(-0.04, 0.04); tVel[i * 3 + 1] = rnd(-0.02, 0.05); tVel[i * 3 + 2] = rnd(-0.04, 0.04);
+      tTint[i] = n % 3; tLife[i] = 1;
+    }
+    trailGap = 0;
+  }
+  // The trail's own little pool of twinkles: they drift and fade over about a second and a half,
+  // flickering on the way like glitter catching the light.
+  var TN = 140, twinkles = pointCloud(TN, 0.06), tVel = new Float32Array(TN * 3), tLife = new Float32Array(TN), tTint = new Uint8Array(TN), tNext = 0, tmpV = new THREE.Vector3();
+  function updateTrail(dt, time) {
+    for (var i = 0; i < TN; i++) {
+      if (tLife[i] <= 0) continue;
+      tLife[i] -= dt * 0.7;
+      if (tLife[i] <= 0) { twinkles.pos[i * 3 + 1] = -50; continue; }
+      tVel[i * 3 + 1] -= 0.06 * dt; // falls very gently, like dust
+      var glint = tLife[i] * (0.55 + 0.45 * Math.sin(time * 19 + i * 2.3)), c = trailTints[tTint[i]];
+      for (var k = 0; k < 3; k++) { twinkles.pos[i * 3 + k] += tVel[i * 3 + k] * dt; twinkles.col[i * 3 + k] = (lin(c[k]) + 0.4) * 1.6 * glint; }
+    }
+    twinkles.geo.attributes.position.needsUpdate = true; twinkles.geo.attributes.color.needsUpdate = true;
+  }
   canvas.addEventListener("pointerdown", function (e) {
     down = { x: e.clientX, y: e.clientY, t: performance.now(), moved: false };
+    setRay(e); // grabbing the dress itself spins it; grabbing anywhere else turns the room
+    down.spin = ray.intersectObjects([skirt, bodice], false).length > 0;
     lastX = e.clientX; lastY = e.clientY; lastT = down.t;
     try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
   });
@@ -1471,7 +1577,10 @@
     var now = performance.now(), dt = Math.max(8, now - lastT) / 1000;
     var mxp = e.clientX - lastX, myp = e.clientY - lastY;
     if (down) {
-      if (Math.abs(e.clientX - down.x) + Math.abs(e.clientY - down.y) > 7) { down.moved = true; orbiting = true; canvas.classList.add("dragging"); }
+      if (Math.abs(e.clientX - down.x) + Math.abs(e.clientY - down.y) > 7) { down.moved = true; canvas.classList.add("dragging"); if (down.spin) dragging = true; else orbiting = true; }
+      // Spinning: the dress turns as fast as the hand moves across it (a quarter of the screen's
+      // height per second is about one turn every two seconds) and keeps going when let go.
+      if (dragging) omegaTarget = Math.max(-14, Math.min(14, mxp / dt / (window.innerHeight * 0.25) * 3));
       if (orbiting) { yawV = -mxp * 0.0045 / dt; pitchV = myp * 0.0035 / dt; yaw += -mxp * 0.0045; pitch += myp * 0.0035; }
     } else if (e.pointerType === "mouse") {
       setRay(e);
@@ -1484,9 +1593,10 @@
       if (gust.length() > 45) gust.setLength(45);
       gustOn = true;
     }
+    if (down || e.pointerType === "mouse") trail(e, Math.abs(mxp) + Math.abs(myp));
     lastX = e.clientX; lastY = e.clientY; lastT = now;
   });
-  function endDrag() { down = null; orbiting = false; canvas.classList.remove("dragging"); }
+  function endDrag() { down = null; orbiting = false; dragging = false; canvas.classList.remove("dragging"); }
   function sewAt(e) { // with a bow or the buttons picked up, a tap sews one on wherever it lands on the dress
     setRay(e);
     if (holding === "lace") { // lace only goes on the skirt: work out which row of the cloth was tapped
@@ -1763,6 +1873,7 @@
   lastCast = last - 1400;
   function frame(now) {
     var dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (dragging) omegaTarget *= Math.exp(-dt * 6); // a hand held still on the skirt slows it down
     if (!orbiting) { yaw += yawV * dt; pitch += pitchV * dt; var dk = Math.exp(-dt * 5); yawV *= dk; pitchV *= dk; }
     yaw = Math.max(-1.05, Math.min(1.05, yaw)); pitch = Math.max(0.03, Math.min(0.8, pitch));
     placeCamera();
@@ -1781,7 +1892,7 @@
     dress.rotation.y = theta;
     var pulse = calm ? 1 : 0.8 + 0.3 * Math.sin(now / 1000 * 2.3);
     for (var g = 0; g < glitterMats.length; g++) glitterMats[g].emissiveIntensity = glitterMats[g].userData.sparkle * pulse;
-    syncSkirt(); updateBows(); updateLace(); updatePaint(dt); syncPetti(); updateSparks(dt, now / 1000);
+    syncSkirt(); updateBows(); updateLace(); updatePaint(dt); syncPetti(); updateSparks(dt, now / 1000); updateTrail(dt, now / 1000);
     if (finalPass) finalPass.uniforms.time.value = now / 1000;
     if (composer) composer.render(); else renderer.render(scene, camera);
     requestAnimationFrame(frame);
