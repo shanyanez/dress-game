@@ -105,6 +105,25 @@ This file keeps track of what has been done on the dress game and what comes nex
   sequins, and in a live browser (hover trail, grab-and-fling spin) with no errors. Tulle is better but
   still flatter than the recording; a next step could be giving it real separate layers with their own folds.
 
+- 2026-11-25 (later again, Nez asked: "ours looks flat and boring", with a second recording): Dimension.
+  What made the recording's dress feel full and real, and ours flat: their hem stops at the floor so the
+  skirt stays a round dome, while ours was cut long and a ring of cloth lay flat on the floor; their cloth
+  is much wider than the hoops so it gathers into deep folds with shadow inside them; it puffs out right
+  below the waist instead of starting as a cone; and its sheer layers move separately, trailing each
+  other when it spins. Changes, all in the preview:
+  - The ball gown is cut to just brush the floor (so the hem can swing up when it twirls) and the hoops
+    puff out sooner below the waist, so the skirt is round and filled.
+  - The cloth is cut a third to two thirds wider than the hoops, and the hoops are fluted more deeply,
+    so the skirt hangs in deep folds.
+  - The hollows between folds are shaded darker and the crests a touch lighter, worked out every frame,
+    so the folds read even on plain satin and keep moving as it swings.
+  - The layers under chiffon and tulle hang slightly turned from each other, so you see folds at
+    different depths through the sheer cloth, and when it spins each layer trails further behind.
+  Checked side by side with the old version (satin, tulle, velvet), A-line in silk, tea length in
+  chiffon, tulle spinning on a phone-sized screen, and a live grab-and-fling in a browser with no
+  errors. While it's flung hard the very bottom edge (the petticoat frill) gets a bit ragged for a
+  moment before it settles; that could be smoothed next.
+
 ## Next ideas
 
 1. Save a dress and share it as a link (include the neckline, sleeves, skirt shape, print, the dyed shade, the lace bands and where the bows and buttons are)
