@@ -112,7 +112,7 @@
   .block[aria-pressed="true"] { transform: translateY(-5px); }
   .block[aria-pressed="true"] span { background: var(--rose); color: var(--linen); }
 
-  /* notions: a ribbon bow and a card of covered buttons to sew onto the dress, and a seam ripper to take them off again */
+  /* notions: a ribbon bow, a card of covered buttons and a card of lace to sew onto the dress, and a seam ripper to take them off again */
   .notions { position: fixed; right: 22px; top: 116px; display: flex; gap: 12px; }
   .notion { background: none; border: 0; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px;
     font-size: 0.62rem; color: var(--ink); filter: drop-shadow(2px 3px 0 rgba(18,12,8,0.5)); transition: transform .15s ease; }
@@ -128,6 +128,8 @@
   .notion .card { fill: var(--linen); stroke: var(--ink); stroke-width: 1.2; stroke-linejoin: round; }
   .notion .dome { fill: #b9a27e; stroke: var(--ink); stroke-width: 1.1; }
   .notion .shine { fill: none; stroke: rgba(240,230,210,0.75); stroke-width: 1; stroke-linecap: round; }
+  .notion .edging { fill: #ece3d0; stroke: var(--ink); stroke-width: 1; stroke-linejoin: round; }
+  .notion .eyelet { fill: none; stroke: var(--ink-soft); stroke-width: 0.8; }
   .notion span { background: var(--linen); padding: 3px 5px 1px; }
   .notion[aria-pressed="true"] { transform: translateY(-5px) scale(1.08); }
   .notion[aria-pressed="true"] span { background: var(--rose); color: var(--linen); }
@@ -188,12 +190,12 @@
 </style>
 </head>
 <body>
-<canvas id="stage" aria-label="A ball gown on a dress form in a seamstress's attic. Drag to look around, tap the dress to throw a color at it or sew on a bow or a button."></canvas>
+<canvas id="stage" aria-label="A ball gown on a dress form in a seamstress's attic. Drag to look around, tap the dress to throw a color at it or sew on a bow, a button or a band of lace."></canvas>
 <div id="fail">This page needs 3D graphics (WebGL), and this browser has it turned off.</div>
 
 <div class="label">
   <h1>The Dress That Can't Decide</h1>
-  <p>Drag to look around. Tap the dress, or pick a spool, to throw a color; the plain spool at the end can be dyed any shade. The tags above the spools choose which part it lands on, the paper patterns on the left change the neckline, sleeves and skirt, the carved blocks print the cloth, and with the bow or the buttons picked up a tap sews one onto the dress.</p>
+  <p>Drag to look around. Tap the dress, or pick a spool, to throw a color; the plain spool at the end can be dyed any shade. The tags above the spools choose which part it lands on, the paper patterns on the left change the neckline, sleeves and skirt, the carved blocks print the cloth, and with the bow, buttons or lace picked up a tap sews them onto the dress.</p>
 </div>
 
 <div class="actions" role="group" aria-label="Actions">
@@ -225,7 +227,15 @@
       <circle class="dome" cx="14" cy="26.5" r="5"/><circle class="dome" cx="26.5" cy="26.5" r="5"/>
       <path class="shine" d="M11.5 12.5 Q12.5 11 14 11 M24 12.5 Q25 11 26.5 11 M11.5 25 Q12.5 23.5 14 23.5 M24 25 Q25 23.5 26.5 23.5"/>
     </svg><span>Buttons</span></button>
-  <button class="notion" id="unpick" title="Unpick every bow and button">
+  <button class="notion" id="lace" aria-pressed="false" title="Pick up the lace, then tap the skirt to lay a band of it all the way round">
+    <svg viewBox="0 0 40 40" aria-hidden="true">
+      <path class="card" d="M10 5 L30 4.5 L30.5 35 L10.5 35.5 Z"/>
+      <path class="edging" d="M5 12.5 L35 12 L35 21 Q32.5 26 30 21 Q27.5 26 25 21 Q22.5 26 20 21 Q17.5 26 15 21 Q12.5 26 10 21 Q7.5 26 5 21.5 Z"/>
+      <path class="eyelet" d="M5.5 15 L34.5 14.5"/>
+      <circle class="eyelet" cx="10" cy="18.5" r="1.4"/><circle class="eyelet" cx="15" cy="18.5" r="1.4"/><circle class="eyelet" cx="20" cy="18.5" r="1.4"/>
+      <circle class="eyelet" cx="25" cy="18.5" r="1.4"/><circle class="eyelet" cx="30" cy="18.5" r="1.4"/>
+    </svg><span>Lace</span></button>
+  <button class="notion" id="unpick" title="Unpick every bow, button and band of lace">
     <svg viewBox="0 0 40 40" aria-hidden="true">
       <path class="steel" d="M22 18 L30 10 L34 4 M30 10 L33.5 9"/>
       <circle class="bead" cx="34" cy="8.6" r="2"/>
@@ -1157,7 +1167,7 @@
   buttonGeo.rotateX(Math.PI / 2); // the lathe spins round y; turn it so the dome faces out of the cloth (z)
   var buttonMat = new THREE.MeshPhysicalMaterial({ color: sc(0xe6dcc8), roughness: 0.55, sheen: 0.6, sheenRoughness: 0.5, sheenColor: white, envMapIntensity: 0.8 });
 
-  var sewn = [], MAX_SEWN = 40, holding = null; // holding is "bow", "button" or nothing (then a tap throws color)
+  var sewn = [], MAX_SEWN = 40, holding = null; // holding is "bow", "button", "lace" or nothing (then a tap throws color)
   var bA = new THREE.Vector3(), bB = new THREE.Vector3(), bC = new THREE.Vector3(), bN = new THREE.Vector3(), bUp = new THREE.Vector3(), bSide = new THREE.Vector3();
   var bBasis = new THREE.Matrix4(), bTwist = new THREE.Quaternion(), zAxis = new THREE.Vector3(0, 0, 1);
   // A bow remembers the little triangle of cloth it's tied to, and where in that triangle, rather than a
@@ -1192,7 +1202,79 @@
     b.g.quaternion.setFromRotationMatrix(bBasis.makeBasis(bSide, bUp, bN)).multiply(bTwist.setFromAxisAngle(zAxis, b.twist));
   }
   function updateBows() { for (var i = 0; i < sewn.length; i++) placeBow(sewn[i]); }
-  function unpickAll() { sewn.forEach(function (b) { b.g.parent.remove(b.g); }); sewn = []; }
+  function unpickAll() {
+    sewn.forEach(function (b) { b.g.parent.remove(b.g); }); sewn = [];
+    laces.forEach(function (l) { scene.remove(l.mesh); l.mesh.geometry.dispose(); }); laces = [];
+  }
+
+  // ---------- lace: bands of scalloped edging laid all the way round the skirt ----------
+  // The lace is drawn once as a see-through pattern: a plain heading along the top with a row of
+  // eyelets, a fine net with a little flower in it, and a scalloped bottom edge with tiny picots.
+  // White is lace, black is air. The tile repeats sideways round the skirt.
+  function laceEdging() {
+    var c = document.createElement("canvas"); c.width = 256; c.height = 128;
+    var g = c.getContext("2d"); g.fillStyle = "#000"; g.fillRect(0, 0, 256, 128);
+    g.fillStyle = g.strokeStyle = "#fff";
+    g.fillRect(0, 2, 256, 16); // the heading
+    g.fillStyle = "#000"; for (var e = 16; e < 256; e += 32) { g.beginPath(); g.arc(e, 10, 4, 0, 6.283); g.fill(); }
+    g.fillStyle = "#fff";
+    function edge() { // two scallops per tile, hanging from the net
+      g.beginPath(); g.moveTo(0, 18); g.lineTo(256, 18); g.lineTo(256, 84);
+      for (var s = 2; s > 0; s--) g.arc(s * 128 - 64, 84, 64, 0, Math.PI);
+      g.closePath();
+    }
+    g.save(); edge(); g.clip(); g.lineWidth = 1.5; // the net, cut to the scallops
+    for (var d = -128; d < 384; d += 12) { g.beginPath(); g.moveTo(d, 18); g.lineTo(d + 110, 128); g.stroke(); g.beginPath(); g.moveTo(d, 18); g.lineTo(d - 110, 128); g.stroke(); }
+    g.restore();
+    g.lineWidth = 6; edge(); g.stroke(); // a firm corded edge round the scallops
+    for (var s2 = 0; s2 < 2; s2++) {
+      var cx = s2 * 128 + 64;
+      for (var q = 1; q < 8; q++) { var a = q / 8 * Math.PI; g.beginPath(); g.arc(cx + Math.cos(a) * 70, 84 + Math.sin(a) * 70, 3.2, 0, 6.283); g.fill(); } // picots
+      for (var p = 0; p < 6; p++) { var b = p / 6 * 6.283; g.beginPath(); g.ellipse(cx + Math.cos(b) * 13, 72 + Math.sin(b) * 13, 10, 5.5, b, 0, 6.283); g.fill(); } // a little flower
+      g.fillStyle = "#000"; g.beginPath(); g.arc(cx, 72, 4, 0, 6.283); g.fill(); g.fillStyle = "#fff";
+    }
+    var t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.anisotropy = MAXA;
+    return t;
+  }
+  var edgingMat = new THREE.MeshStandardMaterial({ color: sc(0xe9dfc9), alphaMap: laceEdging(), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.75, envMapIntensity: 0.7 });
+  // A band is a strip of points LK rows deep and one column per thread of the skirt cloth. It remembers
+  // which row of the cloth it starts on, and every frame it's laid back over the cloth there, so it
+  // swings and folds with the skirt and moves with it when the skirt shape changes.
+  var laces = [], LK = 5, LACE_W = 0.08, MAX_LACE = 6;
+  function laceRows() { return LACE_W / SEG; } // how many rows of cloth the band covers (the rows grow apart on a longer skirt)
+  function layLace(row) {
+    var top = Math.max(0.5, Math.min(row - laceRows() / 2, NR - 1 - laceRows())); // centered on the tap, but kept on the cloth
+    for (var i = 0; i < laces.length; i++) if (Math.abs(laces[i].row - top) < laceRows()) { // tapping a band takes it off again
+      scene.remove(laces[i].mesh); laces[i].mesh.geometry.dispose(); laces.splice(i, 1); return;
+    }
+    var geo = new THREE.BufferGeometry(), idx = [];
+    for (var k = 0; k < LK - 1; k++) for (var c = 0; c < M; c++) { var a = k * (M + 1) + c; idx.push(a, a + M + 1, a + 1, a + 1, a + M + 1, a + M + 2); }
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array((M + 1) * LK * 3), 3));
+    geo.setAttribute("uv", new THREE.BufferAttribute(new Float32Array((M + 1) * LK * 2), 2));
+    geo.setIndex(idx);
+    var mesh = new THREE.Mesh(geo, edgingMat); mesh.frustumCulled = false; mesh.renderOrder = 4; scene.add(mesh);
+    laces.push({ row: top, mesh: mesh }); placeLace(laces[laces.length - 1]);
+    if (laces.length > MAX_LACE) { var old = laces.shift(); scene.remove(old.mesh); old.mesh.geometry.dispose(); }
+  }
+  function placeLace(l) {
+    var p = l.mesh.geometry.attributes.position.array, uv = l.mesh.geometry.attributes.uv.array, w = laceRows();
+    var top = Math.min(l.row, NR - 1 - w), tiles = Math.max(4, Math.round(M * restH(Math.round(top)) / 0.09)); // a whole number of repeats, so no seam shows at the back
+    for (var k = 0; k < LK; k++) {
+      var r = top + w * k / (LK - 1), j = Math.min(NR - 2, Math.floor(r)), f = r - j;
+      for (var c = 0; c <= M; c++) {
+        var ii = c % M, a = j * M + ii, b = a + M, L = j * M + (ii + M - 1) % M, R = j * M + (ii + 1) % M;
+        // down the cloth crossed with along it points out of the skirt; lift the lace a few millimeters that way
+        var dx = X[b] - X[a], dy = Y[b] - Y[a], dz = Z[b] - Z[a], ax = X[R] - X[L], ay = Y[R] - Y[L], az = Z[R] - Z[L];
+        var nx = dy * az - dz * ay, ny = dz * ax - dx * az, nz = dx * ay - dy * ax, nl = Math.hypot(nx, ny, nz) || 1, lift = 0.006 / nl;
+        var o = (k * (M + 1) + c) * 3;
+        p[o] = X[a] + dx * f + nx * lift; p[o + 1] = Y[a] + dy * f + ny * lift; p[o + 2] = Z[a] + dz * f + nz * lift;
+        uv[(k * (M + 1) + c) * 2] = c / M * tiles; uv[(k * (M + 1) + c) * 2 + 1] = 1 - k / (LK - 1);
+      }
+    }
+    l.mesh.geometry.attributes.position.needsUpdate = true; l.mesh.geometry.attributes.uv.needsUpdate = true;
+    l.mesh.geometry.computeVertexNormals();
+  }
+  function updateLace() { for (var i = 0; i < laces.length; i++) placeLace(laces[i]); }
 
   // ---------- paints: solid colors and blends ----------
   function hslToRgb(h, s, l) {
@@ -1407,6 +1489,15 @@
   function endDrag() { down = null; orbiting = false; canvas.classList.remove("dragging"); }
   function sewAt(e) { // with a bow or the buttons picked up, a tap sews one on wherever it lands on the dress
     setRay(e);
+    if (holding === "lace") { // lace only goes on the skirt: work out which row of the cloth was tapped
+      var sh = ray.intersectObject(skirt, false);
+      if (!sh.length) return;
+      var f = sh[0].face, sp = skirtGeo.attributes.position;
+      bA.fromBufferAttribute(sp, f.a); bB.fromBufferAttribute(sp, f.b); bC.fromBufferAttribute(sp, f.c);
+      var w = THREE.Triangle.getBarycoord(sh[0].point, bA, bB, bC, new THREE.Vector3()); // the skirt sits in the room unmoved, so room and cloth points agree
+      layLace(w.x * Math.floor(f.a / VW) + w.y * Math.floor(f.b / VW) + w.z * Math.floor(f.c / VW)); // each row of the drawn skirt is VW points long
+      return;
+    }
     var hits = ray.intersectObjects([skirt, bodice], false);
     if (hits.length) sewOn(holding, hits[0], ray.ray.direction);
   }
@@ -1607,8 +1698,8 @@
       partEls.forEach(function (o) { o.setAttribute("aria-pressed", o === b ? "true" : "false"); });
     });
   });
-  // Pick up the bow or the buttons (only one at a time); tap the same one again to put it down and throw colors again.
-  var notionEls = { bow: document.getElementById("bow"), button: document.getElementById("buttons") };
+  // Pick up the bow, the buttons or the lace (only one at a time); tap the same one again to put it down and throw colors again.
+  var notionEls = { bow: document.getElementById("bow"), button: document.getElementById("buttons"), lace: document.getElementById("lace") };
   Object.keys(notionEls).forEach(function (kind) {
     notionEls[kind].addEventListener("click", function () {
       holding = holding === kind ? null : kind;
@@ -1690,7 +1781,7 @@
     dress.rotation.y = theta;
     var pulse = calm ? 1 : 0.8 + 0.3 * Math.sin(now / 1000 * 2.3);
     for (var g = 0; g < glitterMats.length; g++) glitterMats[g].emissiveIntensity = glitterMats[g].userData.sparkle * pulse;
-    syncSkirt(); updateBows(); updatePaint(dt); syncPetti(); updateSparks(dt, now / 1000);
+    syncSkirt(); updateBows(); updateLace(); updatePaint(dt); syncPetti(); updateSparks(dt, now / 1000);
     if (finalPass) finalPass.uniforms.time.value = now / 1000;
     if (composer) composer.render(); else renderer.render(scene, camera);
     requestAnimationFrame(frame);
@@ -1712,6 +1803,7 @@
       if (hits.length) sewOn("button", hits[0], ray.ray.direction);
     });
   }
+  if (/[?&]lace=1/.test(query)) { layLace(NR - 1); layLace(NR * 0.5); } // test option: a band at the hem and one halfway down
   requestAnimationFrame(frame);
 })();
 </script>

@@ -72,11 +72,21 @@ This file keeps track of what has been done on the dress game and what comes nex
   buttons and bows together from the side, a phone-sized screen) and by clicking in a live browser
   (sew buttons, switch to the bow, tie one) with no errors. Preview only, not live yet.
 
+- 2026-11-25: Lace trim. A little card wound with scalloped lace sits between the Buttons and the seam
+  ripper. Pick it up and a tap on the skirt lays a band of ivory lace all the way round at that height
+  (a plain heading with eyelets, a fine net with a small flower in each scallop, and a picot edge). Tap a
+  band again to take it off; Unpick takes off the lace along with the bows and buttons. Up to six bands.
+  Each band is laid over the cloth every frame, so it folds and swings with the skirt and follows it when
+  the skirt shape changes. Lace goes on the skirt only (the bodice already has its ruffle). Checked in test
+  renders (a band halfway down and one at the hem in satin from the front, velvet with dots from the side,
+  tulle A-line on a phone-sized screen) and by clicking in a live browser (pick up the lace, lay two bands,
+  twirl, unpick) with no errors. Preview only, not live yet.
+
 ## Next ideas
 
-1. A strip of lace trim to finish the decorations (maybe let bows take the chosen thread color too)
-2. Save a dress and share it as a link (include the neckline, sleeves, skirt shape, print, the dyed shade and where the bows and buttons are)
-3. A "take a picture" button
+1. Save a dress and share it as a link (include the neckline, sleeves, skirt shape, print, the dyed shade, the lace bands and where the bows and buttons are)
+2. A "take a picture" button
+3. Maybe let bows and lace take the chosen thread color too, instead of always ivory
 4. Maybe more prints later (gingham, a bigger rose print), or printing just the skirt or just the bodice
 5. Maybe more sleeve styles (flutter sleeves, a halter strap) and skirts (mermaid, high-low hem)
 6. Maybe a gentler change between necklines (it swaps instantly right now)
