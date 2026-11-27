@@ -124,10 +124,22 @@ This file keeps track of what has been done on the dress game and what comes nex
   errors. While it's flung hard the very bottom edge (the petticoat frill) gets a bit ragged for a
   moment before it settles; that could be smoothed next.
 
+- 2026-11-27: Save a dress as a link. A brown-paper pattern envelope called Save sits with the notions,
+  just before the seam ripper. Tapping it writes the whole dress into the page's link (after the #): the
+  cloth, neckline, sleeves, skirt shape, print, the color on the bodice, skirt and trim (a spool's number,
+  or the exact shade for a dyed or surprise color), and where every bow, button and band of lace sits. On
+  a computer the link is copied, and a little stitched linen slip says so; on a phone the usual share sheet
+  opens. Opening the link puts the dress back exactly, with Argue switched off so the saved colors stay
+  put. Nothing is stored anywhere but the link itself. To make room on phones, the printing blocks now sit
+  two by two in the top right, and the notions column starts higher, so it no longer runs into the fabric
+  samples. Checked in a live browser: made a velvet V-neck with puff sleeves, dots, three colors, bows,
+  buttons and lace, saved it, opened the link in a fresh tab and got the same dress (screenshots side by
+  side), no errors; also a tulle A-line link on two phone-sized screens. Preview only, not live yet.
+
 ## Next ideas
 
-1. Save a dress and share it as a link (include the neckline, sleeves, skirt shape, print, the dyed shade, the lace bands and where the bows and buttons are)
-2. A "take a picture" button
+1. A "take a picture" button (could sit next to the Save envelope)
+2. Smooth the petticoat frill, which gets ragged for a moment when the dress is flung hard
 3. Maybe let bows and lace take the chosen thread color too, instead of always ivory
 4. Maybe more prints later (gingham, a bigger rose print), or printing just the skirt or just the bodice
 5. Maybe more sleeve styles (flutter sleeves, a halter strap) and skirts (mermaid, high-low hem)

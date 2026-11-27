@@ -130,6 +130,9 @@
   .notion .shine { fill: none; stroke: rgba(240,230,210,0.75); stroke-width: 1; stroke-linecap: round; }
   .notion .edging { fill: #ece3d0; stroke: var(--ink); stroke-width: 1; stroke-linejoin: round; }
   .notion .eyelet { fill: none; stroke: var(--ink-soft); stroke-width: 0.8; }
+  .notion .envelope { fill: #d6bf98; stroke: var(--ink); stroke-width: 1.2; stroke-linejoin: round; } /* a brown-paper pattern envelope */
+  .notion .flap { fill: none; stroke: var(--ink); stroke-width: 1.1; stroke-linejoin: round; }
+  .notion .sketch { fill: none; stroke: var(--rose); stroke-width: 1.1; stroke-linejoin: round; }
   .notion span { background: var(--linen); padding: 3px 5px 1px; }
   .notion[aria-pressed="true"] { transform: translateY(-5px) scale(1.08); }
   .notion[aria-pressed="true"] span { background: var(--rose); color: var(--linen); }
@@ -158,6 +161,12 @@
   .dye i::before { content: ""; position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; margin: -5px 0 0 -4.5px;
     border: 1.5px solid var(--ink); border-radius: 0 50% 50% 50%; transform: rotate(45deg); background: var(--linen); } /* a little drop of dye */
 
+  /* a little stitched slip of linen that says the dress was saved, then fades */
+  .slip { position: fixed; left: 50%; bottom: 146px; transform: translateX(-50%) rotate(-1deg); max-width: calc(100% - 32px); padding: 10px 17px 8px;
+    background: var(--linen); outline: 1.5px dashed var(--rose); outline-offset: -5px; box-shadow: var(--drop);
+    font-size: 0.72rem; line-height: 1.4; text-align: center; opacity: 0; transition: opacity .4s ease; pointer-events: none; }
+  .slip.shown { opacity: 1; }
+
   #fail { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px; text-align: center; color: #d8ccb4; font-size: 1rem; }
   @media (max-width: 760px) {
     .label { top: 10px; left: 10px; max-width: 11rem; padding: 12px 15px 10px; }
@@ -177,14 +186,15 @@
     .neck { font-size: 0.56rem; }
     .neck svg { width: 34px; height: 34px; }
     .neck span { padding: 2px 4px 0; }
-    .prints { right: 8px; top: 92px; flex-direction: column; gap: 7px; }
+    .prints { right: 8px; top: 92px; display: grid; grid-template-columns: repeat(2, auto); gap: 7px 6px; } /* two by two, to leave room for the notions below */
     .block { font-size: 0.54rem; }
     .block svg { width: 28px; height: 28px; }
     .block span { padding: 2px 4px 0; }
-    .notions { right: 8px; top: 302px; flex-direction: column; gap: 8px; }
+    .notions { right: 8px; top: 206px; flex-direction: column; gap: 8px; }
     .notion { font-size: 0.54rem; }
     .notion svg { width: 30px; height: 30px; }
     .notion span { padding: 2px 4px 0; }
+    .slip { bottom: 212px; font-size: 0.64rem; }
     .rack { left: 12px; right: 12px; transform: none; overflow-x: auto; justify-content: flex-start; max-width: none; padding: 14px 12px 0; }
   }
 </style>
@@ -235,6 +245,12 @@
       <circle class="eyelet" cx="10" cy="18.5" r="1.4"/><circle class="eyelet" cx="15" cy="18.5" r="1.4"/><circle class="eyelet" cx="20" cy="18.5" r="1.4"/>
       <circle class="eyelet" cx="25" cy="18.5" r="1.4"/><circle class="eyelet" cx="30" cy="18.5" r="1.4"/>
     </svg><span>Lace</span></button>
+  <button class="notion" id="keep" title="Save this dress as a link, to send to a friend or come back to later">
+    <svg viewBox="0 0 40 40" aria-hidden="true">
+      <path class="envelope" d="M5 9 L35 8 L35.5 33 L5.5 33.5 Z"/>
+      <path class="flap" d="M5 9 L20.5 19.5 L35 8"/>
+      <path class="sketch" d="M18.5 22 L22.5 22 L21.5 25 L26 31.5 L15 31.5 L19.5 25 Z"/>
+    </svg><span>Save</span></button>
   <button class="notion" id="unpick" title="Unpick every bow, button and band of lace">
     <svg viewBox="0 0 40 40" aria-hidden="true">
       <path class="steel" d="M22 18 L30 10 L34 4 M30 10 L33.5 9"/>
@@ -242,6 +258,7 @@
       <path class="handle" d="M7 30 L19 18 L23.5 22.5 L11.5 34.5 Q6 36.5 7 30 Z"/>
     </svg><span>Unpick</span></button>
 </div>
+<div class="slip" id="slip" role="status" aria-live="polite"></div>
 <div class="parts" id="parts" role="group" aria-label="Part of the dress to color">
   <button class="part" id="p-all" aria-pressed="true">Whole dress</button>
   <button class="part" id="p-bodice" aria-pressed="false">Bodice</button>
@@ -272,7 +289,9 @@
   function sc(hex) { return new THREE.Color(hex).convertSRGBToLinear(); }
   function lin(v) { return Math.pow(v / 255, 2.2); }
   function rnd(a, b) { return a + Math.random() * (b - a); }
-  var query = location.search || "";
+  // Settings can come after the ? or the #. A saved dress link puts its choices after the #
+  // (see "save a dress as a link" further down), using the same names, so both are read the same way.
+  var query = (location.search || "") + "&" + location.hash.slice(1);
 
   var DPR = Math.min(window.devicePixelRatio || 1, 2);
   renderer.setPixelRatio(DPR);
@@ -1270,6 +1289,13 @@
     bA.fromBufferAttribute(pos, f.a); bB.fromBufferAttribute(pos, f.b); bC.fromBufferAttribute(pos, f.c);
     var w = THREE.Triangle.getBarycoord(obj.worldToLocal(hit.point.clone()), bA, bB, bC, new THREE.Vector3());
     bN.subVectors(bB, bA).cross(bC.sub(bA)).transformDirection(obj.matrixWorld);
+    // The cloth is two-sided, so note which way faces out (towards whoever tied it) and keep the bow on that side.
+    tie(kind, obj, hit.faceIndex, w, bN.dot(dir) > 0 ? -1 : 1, rnd(-0.25, 0.25));
+  }
+  // Ties a bow or sews a button onto triangle number "tri" of the skirt or bodice. A saved dress link
+  // only has to remember these few numbers to put every bow and button back in the same place.
+  function tie(kind, obj, tri, w, side, twist) {
+    var ix = obj.geometry.index.array, f = [ix[tri * 3], ix[tri * 3 + 1], ix[tri * 3 + 2]];
     var g = new THREE.Group();
     if (kind === "bow") {
       var body = new THREE.Mesh(bowGeo, bowMat), knot = new THREE.Mesh(knotGeo, bowMat);
@@ -1279,8 +1305,7 @@
     }
     g.scale.setScalar(obj === skirt ? 1.4 : 1.1); // a little bigger on the wide skirt, so it doesn't look lost
     obj.parent.add(g); // the skirt lives in the room, the bodice on the turning form; the bow goes with whichever it's on
-    // The cloth is two-sided, so note which way faces out (towards whoever tied it) and keep the bow on that side.
-    var b = { g: g, pos: pos, f: [f.a, f.b, f.c], w: w, side: bN.dot(dir) > 0 ? -1 : 1, twist: rnd(-0.25, 0.25) };
+    var b = { g: g, pos: obj.geometry.attributes.position, f: f, w: w, side: side, twist: twist, kind: kind, on: obj === skirt ? "s" : "d", tri: tri };
     sewn.push(b); placeBow(b);
     if (sewn.length > MAX_SEWN) { var old = sewn.shift(); old.g.parent.remove(old.g); }
   }
@@ -1426,6 +1451,7 @@
     paintable(strapGeo, true, 0, "bodice"), paintable(puffGeo, true, 0, "bodice")
   ], tmpC = [0, 0, 0];
   var partChoice = "all"; // which part the next color lands on
+  var worn = { skirt: PAINTS[1][2], bodice: PAINTS[1][2], trim: PAINTS[1][2] }; // the last color thrown at each part, which is what it ends up (for saving)
   paints[1].shade = bodiceShade; paints[0].shade = foldShade;
 
   function updatePaint(dt) {
@@ -1523,6 +1549,7 @@
     // Remember which part was chosen when the color was thrown, so switching parts mid-spread doesn't redirect it.
     var parts = partChoice === "all" ? { skirt: 1, bodice: 1, trim: 1 } : {};
     parts[partChoice] = 1;
+    for (var k in parts) worn[k] = paint;
     splashes.push({ x: x, y: y, z: z, paint: paint, parts: parts, r: 0, id: ++splashId });
     if (!quiet) { if (paint !== duel[1]) duel = [duel[1], paint]; duelTurn = 0; }
     for (var i = 0, n = calm ? 8 : 40; i < n; i++) spark(x, y, z, paint.rgb, 1.3);
@@ -1842,6 +1869,73 @@
     lastCast = performance.now() - 2600;
   });
 
+  // ---------- save a dress as a link ----------
+  // Everything that makes the dress is written into the link after the #: the cloth, the pattern
+  // pieces, the print, the color on each part, and where each bow, button and band of lace sits.
+  // Opening the link reads it all back, so it works for a friend on another phone too. Nothing is
+  // stored anywhere else.
+  function paintCode(p) { // a spool's number, or for a dyed or surprise shade, its six hex digits
+    for (var i = 0; i < PAINTS.length; i++) if (PAINTS[i][2] === p) return i;
+    return p.rgb.map(function (v) { return ("0" + Math.round(v).toString(16)).slice(-2); }).join("");
+  }
+  function paintFrom(code) {
+    if (/^[0-9a-f]{6}$/.test(code)) return solid([0, 2, 4].map(function (k) { return parseInt(code.substr(k, 2), 16); }));
+    var p = PAINTS[+code]; return p && p[2];
+  }
+  function dyePart(part, paint) { // color a whole part at once, with no splash, the way it was when saved
+    worn[part] = paint;
+    var cs = Math.cos(theta), sn = Math.sin(theta);
+    paints.forEach(function (o) {
+      if (o.part !== part) return;
+      var p = o.geo.attributes.position.array;
+      for (var i = 0; i < o.n; i++) {
+        var x = p[i * 3], y = p[i * 3 + 1], z = p[i * 3 + 2], c3 = paint.lin;
+        if (o.turns) { var tx = x * cs + z * sn; z = -x * sn + z * cs; x = tx; }
+        if (paint.fn) { paint.fn(x, y, z, tmpC); c3 = tmpC; } // blends depend on where on the dress the point is
+        for (var k = 0; k < 3; k++) o.cur[i * 3 + k] = o.tgt[i * 3 + k] = c3[k];
+      }
+    });
+  }
+  function designLink() {
+    var bits = ["f=" + fabricName, "neck=" + neckName, "sleeve=" + sleeveName, "skirt=" + skirtName, "print=" + printName,
+      "colors=" + [worn.bodice, worn.skirt, worn.trim].map(paintCode).join(".")];
+    if (sewn.length) bits.push("sewn=" + sewn.map(function (b) {
+      return [b.kind === "bow" ? "b" : "u", b.on, b.tri, b.w.x.toFixed(3), b.w.y.toFixed(3), b.side, b.twist.toFixed(2)].join("~");
+    }).join("_"));
+    if (laces.length) bits.push("lace=" + laces.map(function (l) { return l.row.toFixed(2); }).join("_"));
+    return location.origin + location.pathname + "#" + bits.join("&");
+  }
+  function restoreDesign() { // the cloth and pattern pieces were already read at the top; this puts back colors, bows and lace
+    var c = /[?&]colors=([\w.]+)/.exec(query), s = /[?&]sewn=([\w.~-]+)/.exec(query), l = /[?&]lace=([\d._]+)/.exec(query);
+    if (c) {
+      c[1].split(".").forEach(function (code, i) { var p = paintFrom(code); if (p && i < 3) dyePart(["bodice", "skirt", "trim"][i], p); });
+      argue = false; argueBtn.setAttribute("aria-pressed", "false"); // a saved dress should stay as it was made, not start arguing with itself
+    }
+    if (s) s[1].split("_").forEach(function (t) {
+      var v = t.split("~"), obj = v[1] === "s" ? skirt : bodice, tri = parseInt(v[2], 10), wx = +v[3], wy = +v[4];
+      if (tri >= 0 && tri < obj.geometry.index.count / 3 && wx >= 0 && wy >= 0 && wx + wy <= 1.01)
+        tie(v[0] === "b" ? "bow" : "button", obj, tri, new THREE.Vector3(wx, wy, 1 - wx - wy), +v[5] < 0 ? -1 : 1, +v[6] || 0);
+    });
+    if (l) l[1].split("_").forEach(function (r) { if (+r >= 0) layLace(+r + laceRows() / 2); }); // layLace wants the middle of the band
+  }
+  var slip = document.getElementById("slip"), slipTimer = 0;
+  function say(text) {
+    slip.textContent = text; slip.classList.add("shown");
+    clearTimeout(slipTimer); slipTimer = setTimeout(function () { slip.classList.remove("shown"); }, 3200);
+  }
+  document.getElementById("keep").addEventListener("click", function () {
+    var url = designLink();
+    try { history.replaceState(null, "", url); } catch (err) {} // the address bar now holds the dress too
+    if (navigator.share && window.matchMedia("(pointer: coarse)").matches) { // on phones, open the usual share sheet
+      navigator.share({ title: document.title, url: url }).catch(function () {});
+      say("Your dress is saved in this page's link.");
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(function () { say("Link copied. Send it to a friend, or keep it to come back to this dress."); },
+        function () { say("Your dress is saved in the link in the address bar."); });
+    } else say("Your dress is saved in the link in the address bar.");
+  });
+  window.addEventListener("hashchange", function () { location.reload(); }); // a different saved link pasted into this tab
+
   // ---------- finishing pass: soft glow, then an old-print grade with grain ----------
   var composer = null, finalPass = null;
   if (THREE.EffectComposer && THREE.RenderPass && THREE.UnrealBloomPass && THREE.ShaderPass && renderer.capabilities.isWebGL2) {
@@ -1920,6 +2014,7 @@
     requestAnimationFrame(frame);
   }
   syncSkirt(); updatePaint(0.016); syncPetti();
+  restoreDesign();
   if (/[?&]bows=1/.test(query)) { // test option: a bow at the front of the waist and a row across the skirt, tied straight on from the front
     dress.updateMatrixWorld(true);
     [[0, WAIST + 0.03], [-0.42, 0.62], [-0.2, 0.55], [0.2, 0.55], [0.42, 0.62]].forEach(function (p) {
